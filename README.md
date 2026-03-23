@@ -1,73 +1,152 @@
-# React + TypeScript + Vite
+# 🏸 SportCenter OS  
+**Sport Commerce Platform for Shop & Court Management**
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+---
 
-Currently, two official plugins are available:
+## 🚀 Overview
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+**SportCenter OS** là nền tảng quản lý toàn diện dành cho:
 
-## React Compiler
+- Shop thể thao (cầu lông, pickleball, tennis…)
+- Trung tâm thể thao có sân cho thuê
+- Mô hình kết hợp **bán hàng + cho thuê sân + dịch vụ tại sân**
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Hệ thống giúp bạn quản lý:
+- Bán hàng (POS)
+- Sản phẩm & tồn kho
+- Sân & booking
+- Order đồ ăn / nước uống tại sân
+- Hóa đơn & thanh toán
+- Khách hàng & báo cáo
 
-## Expanding the ESLint configuration
+👉 Tất cả trong **một nền tảng duy nhất**
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+---
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+## 🎯 Business Models Supported
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+### 1. Shop Only
+- Bán vợt, giày, bóng, phụ kiện
+- Quản lý kho & đơn hàng
+- POS tại quầy
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+### 2. Shop + Court
+- Quản lý sân (badminton, pickleball, tennis)
+- Booking theo giờ / ngày
+- Check-in / Check-out
+- Order đồ ăn tại sân
+- Gộp bill: sân + hàng hóa + dịch vụ
+
+---
+
+## 🧩 Core Modules
+
+### 🛍️ Shop / POS
+- Tạo đơn bán hàng
+- Quét sản phẩm (barcode/QR)
+- Áp dụng khuyến mãi
+- Thanh toán đa phương thức
+
+### 📦 Product & Inventory
+- Quản lý sản phẩm & SKU
+- Tồn kho theo chi nhánh
+- Nhập / xuất / kiểm kho
+- Cảnh báo hết hàng
+
+### 🎾 Court Management
+- Quản lý sân theo loại
+- Trạng thái sân (trống / đã đặt / đang chơi / bảo trì)
+- Cấu hình giá theo khung giờ
+
+### 📅 Booking
+- Lịch sân theo timeline
+- Đặt sân (walk-in / online)
+- Check-in / Check-out
+- Hủy / đổi booking
+
+### 🥤 F&B (Order tại sân)
+- Menu đồ ăn / nước uống
+- Order theo sân / booking
+- Trạng thái phục vụ
+- Gộp vào hóa đơn
+
+### 💳 Billing & Payment
+- Hóa đơn bán hàng
+- Hóa đơn booking
+- Gộp hóa đơn tổng
+- Thanh toán (cash / transfer / e-wallet)
+
+### 👤 Customer (CRM)
+- Hồ sơ khách hàng
+- Lịch sử mua hàng
+- Lịch sử booking
+- Loyalty / tích điểm
+
+### 📊 Reports
+- Doanh thu theo ngày/tháng
+- Tỷ lệ lấp đầy sân
+- Top sản phẩm
+- Phân tích khung giờ
+
+### ⚙️ Admin / Settings
+- Quản lý người dùng & phân quyền
+- Cấu hình chi nhánh
+- Bật/tắt module
+- Cấu hình giá & chính sách
+
+---
+
+## 🏗️ System Architecture
+
+SportCenter OS gồm 3 trục chính:
+
+- Retail Commerce (Shop)
+- Court Booking (Sân)
+- On-Court Service (F&B)
+
+Dùng chung:
+- Customer
+- Payment
+- Invoice
+- Reporting
+
+---
+
+## 📁 Project Structure
+
+```text
+src/
+├── components/
+├── pages/
+├── hooks/
+├── lib/
+├── types/
+└── App.tsx
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+---
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## 📌 Target Users
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+- Shop thể thao
+- Trung tâm cầu lông
+- Trung tâm pickleball
+- Trung tâm tennis
+- Sport complex
+
+---
+
+## 📄 License
+
+MIT License
+
+---
+
+## 💬 Contact
+
+Email: hello@sportcenteros.vn
+Location: Ho Chi Minh City, Vietnam
+
+---
+
+> Build for real-world sport business operations.
