@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom'
 import { Sparkles } from 'lucide-react'
 
 import Footer from '@/components/layout/footer'
@@ -11,6 +12,7 @@ import { QuickActionCard, QuickStatCard, SectionHeader } from '@/pages/dashboard
 import type { ModuleCategory } from '@/types/module'
 
 export default function Dashboard() {
+  const navigate = useNavigate()
   const activeCategory: ModuleCategory = 'all'
 
   const filteredModules =
@@ -26,7 +28,7 @@ export default function Dashboard() {
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-900 text-white shadow-sm">
               <Sparkles className="h-5 w-5" />
             </div>
-            <h1 className="m-0 p-0 text-lg font-bold">Badminton Assistant</h1>
+            <h1 className="m-8 p-0 text-5xl font-bold">Badminton Assistant</h1>
           </div>
 
           <div className="hidden w-full max-w-sm lg:block">
@@ -37,10 +39,19 @@ export default function Dashboard() {
           </div>
 
           <div className="flex items-center gap-3">
-            <Button variant="outline" className="hidden rounded-2xl sm:inline-flex">
-              Quay về dashboard
+            <Button
+              variant="outline"
+              className="hidden rounded-2xl sm:inline-flex"
+              onClick={() => navigate('/auth/login')}
+            >
+              Đăng nhập
             </Button>
-            <Button className="rounded-2xl bg-slate-900 hover:bg-slate-800">Mở OS</Button>
+            <Button
+              className="rounded-2xl bg-slate-900 hover:bg-slate-800"
+              onClick={() => navigate('/auth/register')}
+            >
+              Đăng ký
+            </Button>
           </div>
         </div>
       </header>
@@ -83,18 +94,22 @@ export default function Dashboard() {
             <QuickActionCard
               title="Tạo đơn bán hàng"
               description="Mở nhanh POS để tạo đơn và thanh toán tại quầy."
+              href="/shop"
             />
             <QuickActionCard
               title="Đặt sân mới"
               description="Tạo booking mới cho khách lẻ hoặc khách thành viên."
+              href="/court"
             />
             <QuickActionCard
               title="Order đồ uống"
               description="Tạo nhanh order F&B theo sân hoặc theo booking."
+              href="/service"
             />
             <QuickActionCard
               title="Xem lịch hôm nay"
               description="Theo dõi sân đang chơi, sân trống và booking sắp tới."
+              href="/court"
             />
           </div>
         </section>

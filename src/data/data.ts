@@ -27,6 +27,7 @@ export const modules: ModuleItem[] = [
     badge: 'Shop',
     icon: ShoppingBag,
     items: ['Tạo đơn bán hàng', 'Quét sản phẩm', 'Áp dụng giảm giá', 'In hóa đơn'],
+    href: '/shop',
   },
   {
     title: 'Sản phẩm & Kho',
@@ -35,6 +36,7 @@ export const modules: ModuleItem[] = [
     badge: 'Shop',
     icon: Package,
     items: ['Danh mục sản phẩm', 'Biến thể SKU', 'Kiểm kho', 'Nhập / xuất kho'],
+    href: '/shop/inventory',
   },
   {
     title: 'Quản lý sân',
@@ -43,6 +45,7 @@ export const modules: ModuleItem[] = [
     badge: 'Court',
     icon: Store,
     items: ['Danh sách sân', 'Loại sân', 'Trạng thái sân', 'Bảo trì sân'],
+    href: '/court',
   },
   {
     title: 'Booking sân',
@@ -51,6 +54,7 @@ export const modules: ModuleItem[] = [
     badge: 'Court',
     icon: CalendarRange,
     items: ['Lịch sân', 'Đặt sân', 'Check-in', 'Hủy / đổi booking'],
+    href: '/court/booking',
   },
   {
     title: 'Order tại sân',
@@ -59,6 +63,7 @@ export const modules: ModuleItem[] = [
     badge: 'F&B',
     icon: UtensilsCrossed,
     items: ['Menu món', 'Tạo order theo sân', 'Trạng thái giao món', 'Gộp bill dịch vụ'],
+    href: '/service',
   },
   {
     title: 'Hóa đơn & Thanh toán',
@@ -67,6 +72,7 @@ export const modules: ModuleItem[] = [
     badge: 'Billing',
     icon: CreditCard,
     items: ['Hóa đơn bán hàng', 'Hóa đơn booking', 'Gộp hóa đơn', 'Lịch sử thanh toán'],
+    href: '/service/billing',
   },
   {
     title: 'Khách hàng',
@@ -75,6 +81,7 @@ export const modules: ModuleItem[] = [
     badge: 'CRM',
     icon: Users,
     items: ['Hồ sơ khách hàng', 'Lịch sử mua hàng', 'Lịch sử booking', 'Tích điểm'],
+    href: '/crm/customers',
   },
   {
     title: 'Báo cáo & Thống kê',
@@ -83,6 +90,7 @@ export const modules: ModuleItem[] = [
     badge: 'Reports',
     icon: BarChart3,
     items: ['Doanh thu theo ngày', 'Báo cáo sân', 'Top sản phẩm', 'Khung giờ đông khách'],
+    href: '/crm/reports',
   },
   {
     title: 'Người dùng & Phân quyền',
@@ -91,6 +99,7 @@ export const modules: ModuleItem[] = [
     badge: 'Admin',
     icon: LayoutGrid,
     items: ['Tài khoản nhân viên', 'Role / permission', 'Nhật ký thao tác', 'Giới hạn truy cập'],
+    href: '/admin/users',
   },
   {
     title: 'Cấu hình hệ thống',
@@ -99,6 +108,7 @@ export const modules: ModuleItem[] = [
     badge: 'Settings',
     icon: Settings,
     items: ['Chi nhánh', 'Bật / tắt module', 'Cấu hình giá', 'Thanh toán'],
+    href: '/admin/settings',
   },
 ]
 

@@ -7,4 +7,5 @@ export type ModuleItem = {
   badge: string
   icon: React.ComponentType<{ className?: string }>
   items: string[]
+  href?: string
 }

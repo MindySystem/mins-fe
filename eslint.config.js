@@ -29,7 +29,25 @@ export default defineConfig([
         'warn',
         { allowConstantExport: true },
       ],
-      'simple-import-sort/imports': 'error',
+      'simple-import-sort/imports': [
+        'error',
+        {
+          groups: [
+            // Node.js built-ins.
+            ['^node:'],
+            // React taking precedence, then other external packages.
+            ['^react', '^@?\\w'],
+            // Internal packages (alias starts with @/).
+            ['^@/'],
+            // Parent directory imports.
+            ['^\\.\\.(?!/?$)', '^\\.\\./?$'],
+            // Other relative imports. Same-folder imports and `.` last.
+            ['^\\./(?=.*/)(?!/?$)', '^\\.(?!/?$)', '^\\./?$'],
+            // Style imports.
+            ['^.+\\.?(css|scss|sass|less)$'],
+          ],
+        },
+      ],
       'simple-import-sort/exports': 'error',
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
     },

@@ -36,7 +36,7 @@ export default function ModuleCard({ module }: { module: ModuleItem }) {
         </div>
         <div className="flex items-center gap-3 pt-2">
           <Button className="rounded-2xl bg-slate-900 hover:bg-slate-800">Xem chi tiết</Button>
-          <Button variant="ghost" className="rounded-2xl text-slate-700">
+          <Button variant="ghost" className="rounded-2xl text-slate-700" onClick={() => { if (module.href) window.location.href = module.href }}>
             Mở module
           </Button>
         </div>

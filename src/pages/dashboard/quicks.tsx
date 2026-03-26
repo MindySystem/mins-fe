@@ -38,7 +38,10 @@ export function QuickStatCard({ value, label }: { value: string; label: string }
   )
 }
 
-export function QuickActionCard({ title, description }: { title: string; description: string }) {
+import { useNavigate } from 'react-router-dom'
+
+export function QuickActionCard({ title, description, href }: { title: string; description: string; href?: string }) {
+  const navigate = useNavigate()
   return (
     <Card className="rounded-3xl border-slate-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
       <CardHeader>
@@ -46,7 +49,7 @@ export function QuickActionCard({ title, description }: { title: string; descrip
         <CardDescription className="leading-6">{description}</CardDescription>
       </CardHeader>
       <CardContent>
-        <Button variant="outline" className="rounded-2xl">
+        <Button variant="outline" className="rounded-2xl" onClick={() => navigate(href || '#')}>
           Mở nhanh
           <ArrowRight className="ml-2 h-4 w-4" />
         </Button>
