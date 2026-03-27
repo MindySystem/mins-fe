@@ -88,6 +88,9 @@ export const shopService = {
   getShopProducts: async () => {
     return MOCK_PRODUCTS
   },
+  getProductById: async (productId: string) => {
+    return MOCK_PRODUCTS.find((p) => p.id === productId) ?? null
+  },
   getServiceProducts: async () => {
     return [
       {

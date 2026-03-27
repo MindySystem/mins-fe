@@ -1,9 +1,16 @@
-import { useNavigate } from 'react-router-dom'
-import { LogOut, Sparkles, User as UserIcon } from 'lucide-react'
+import { Link, useNavigate } from 'react-router-dom'
+import { Book, LayoutDashboard, LogOut, Sparkles, User as UserIcon } from 'lucide-react'
 
 import Footer from '@/components/layout/footer'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { categoryOptions, groupedSections, modules, quickStats } from '@/data/data'
@@ -48,26 +55,56 @@ export default function Dashboard() {
           <div className="flex items-center gap-3">
             {user ? (
               <>
-                <div className="mr-2 hidden items-center gap-2 rounded-full border border-slate-200 bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-600 sm:flex">
-                  <UserIcon className="h-4 w-4" />
-                  <span>Xin chào, {user.name}</span>
-                </div>
-                <Button
-                  variant="outline"
-                  className="rounded-2xl"
-                  onClick={() => {
-                    logout()
-                    navigate('/') // Refresh to public view
-                  }}
-                >
-                  Đăng xuất
-                  <LogOut className="ml-2 h-4 w-4" />
-                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger className="hidden items-center gap-2 rounded-full border border-slate-200 bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-600 outline-none hover:bg-slate-50 sm:inline-flex">
+                    <UserIcon className="h-4 w-4" />
+                    <span>Xin chào, {user.name}</span>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="min-w-56 rounded-xl p-1">
+                    <DropdownMenuItem
+                      className="flex cursor-pointer items-center rounded-lg text-sm font-medium"
+                      onClick={() => navigate('/')}
+                    >
+                      <UserIcon className="mr-2 h-4 w-4" />
+                      Hồ sơ
+                    </DropdownMenuItem>
+                    <DropdownMenuItem>
+                      <Link
+                        to="http://localhost:8000/dashboard"
+                        target="_blank"
+                        className="flex cursor-pointer items-center rounded-lg text-sm font-medium"
+                      >
+                        <LayoutDashboard className="mr-2 h-4 w-4" />
+                        Vào Admin
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      variant="destructive"
+                      className="flex cursor-pointer items-center rounded-lg text-sm font-medium"
+                      onClick={() => {
+                        logout()
+                        navigate('/')
+                      }}
+                    >
+                      <LogOut className="mr-2 h-4 w-4" />
+                      Đăng xuất
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+
+                <Link to="http://localhost:8000/dashboard" target="_blank">
+                  <Button variant="outline" className="rounded-2xl">
+                    <LayoutDashboard className="h-4 w-4" />
+                    Vào Admin
+                  </Button>
+                </Link>
                 <Button
                   className="rounded-2xl text-white shadow-sm"
                   style={{ backgroundColor: tenant.primaryColor }}
                   onClick={() => navigate('/court')}
                 >
+                  <Book className="h-4 w-4" />
                   Đặt sân ngay
                 </Button>
               </>

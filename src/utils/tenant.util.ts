@@ -34,7 +34,7 @@ const MOCK_TENANTS: Record<string, TenantConfig> = {
 export const getTenantFromHostname = (): TenantConfig => {
   const hostname = window.location.hostname
   const searchParams = new URLSearchParams(window.location.search)
-  
+
   // 1. Check URL Parameter (highest priority for dev testing)
   const tenantParam = searchParams.get('tenant')
   if (tenantParam && MOCK_TENANTS[tenantParam]) {

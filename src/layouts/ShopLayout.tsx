@@ -11,11 +11,9 @@ interface ShopLayoutProps {
 
 export function ShopLayout({ children, searchQuery, onSearchChange }: ShopLayoutProps) {
   return (
-    <div className="min-h-screen bg-white font-sans flex flex-col">
+    <div className="flex min-h-screen flex-col bg-white font-sans">
       <ShopHeader searchQuery={searchQuery} onSearchChange={onSearchChange} />
-      <main className="flex-1">
-        {children}
-      </main>
+      <main className="flex-1">{children}</main>
       <ShopFooter />
     </div>
   )

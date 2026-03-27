@@ -9,9 +9,10 @@ import UnauthorizedPage from '@/pages/error/401'
 import NotFoundPage from '@/pages/error/404'
 import ServerErrorPage from '@/pages/error/500'
 import ComingSoonPage from '@/pages/error/coming-soon'
-import HomePage from '@/pages/home'
 import ServicePage from '@/pages/service'
 import ShopPage from '@/pages/shop'
+import ShopHomePage from '@/pages/shop/home'
+import ProductDetailPage from '@/pages/shop/product-detail'
 
 import App from '../App'
 
@@ -29,11 +30,15 @@ const router = createBrowserRouter([
         children: [
           {
             index: true,
-            element: <HomePage />,
+            element: <ShopHomePage />,
           },
           {
             path: 'products',
             element: <ShopPage />,
+          },
+          {
+            path: 'products/:productId',
+            element: <ProductDetailPage />,
           },
           {
             path: 'sale',
