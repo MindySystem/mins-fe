@@ -96,6 +96,10 @@
   --sidebar-ring: oklch(0.708 0 0);
 }
 
+button {
+  cursor: pointer;
+}
+
 @media (prefers-color-scheme: dark) {
   :root {
     --text: #9ca3af;

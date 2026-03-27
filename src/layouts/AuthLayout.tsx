@@ -13,7 +13,7 @@ export function AuthLayout() {
           </span>
         </p>
       </Link>
-      <div className="relative hidden items-center justify-center bg-emerald-950 lg:flex lg:w-1/2">
+      <div className="relative hidden items-center bg-emerald-950 lg:flex lg:w-1/2">
         <div className="absolute inset-0 z-0">
           <img
             src="/images/auth-bg.png"
@@ -24,7 +24,7 @@ export function AuthLayout() {
           <div className="absolute inset-0 bg-gradient-to-r from-transparent to-slate-950"></div>
         </div>
 
-        <div className="relative z-10 mt-32 max-w-lg text-left">
+        <div className="relative z-10 m-10 mt-32 max-w-lg text-left">
           <p className="text-xl leading-relaxed text-slate-300">
             Nền tảng quản lý thông minh dành cho Shop Thể Thao và Trung tâm cho thuê sân chuyên
             nghiệp.

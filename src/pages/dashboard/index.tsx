@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { Sparkles } from 'lucide-react'
+import { LogOut, Sparkles, User as UserIcon } from 'lucide-react'
 
 import Footer from '@/components/layout/footer'
 import { Badge } from '@/components/ui/badge'
@@ -9,10 +9,12 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { categoryOptions, groupedSections, modules, quickStats } from '@/data/data'
 import { ModuleSection } from '@/pages/dashboard/module/moduleSelection'
 import { QuickActionCard, QuickStatCard, SectionHeader } from '@/pages/dashboard/quicks'
+import { useAppStore } from '@/store/useAppStore'
 import type { ModuleCategory } from '@/types/module'
 
 export default function Dashboard() {
   const navigate = useNavigate()
+  const { user, tenant, logout } = useAppStore()
   const activeCategory: ModuleCategory = 'all'
 
   const filteredModules =
@@ -25,10 +27,15 @@ export default function Dashboard() {
       <header className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/85 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-6 lg:px-3">
           <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-900 text-white shadow-sm">
+            <div
+              className="flex h-11 w-11 items-center justify-center rounded-2xl text-white shadow-sm"
+              style={{ backgroundColor: tenant.primaryColor }}
+            >
               <Sparkles className="h-5 w-5" />
             </div>
-            <h1 className="m-8 p-0 text-5xl font-bold">Badminton Assistant</h1>
+            <h1 className="m-8 p-0 text-3xl font-bold" style={{ color: tenant.primaryColor }}>
+              {tenant.name}
+            </h1>
           </div>
 
           <div className="hidden w-full max-w-sm lg:block">
@@ -39,19 +46,49 @@ export default function Dashboard() {
           </div>
 
           <div className="flex items-center gap-3">
-            <Button
-              variant="outline"
-              className="hidden rounded-2xl sm:inline-flex"
-              onClick={() => navigate('/auth/login')}
-            >
-              Đăng nhập
-            </Button>
-            <Button
-              className="rounded-2xl bg-slate-900 hover:bg-slate-800"
-              onClick={() => navigate('/auth/register')}
-            >
-              Đăng ký
-            </Button>
+            {user ? (
+              <>
+                <div className="mr-2 hidden items-center gap-2 rounded-full border border-slate-200 bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-600 sm:flex">
+                  <UserIcon className="h-4 w-4" />
+                  <span>Xin chào, {user.name}</span>
+                </div>
+                <Button
+                  variant="outline"
+                  className="rounded-2xl"
+                  onClick={() => {
+                    logout()
+                    navigate('/') // Refresh to public view
+                  }}
+                >
+                  Đăng xuất
+                  <LogOut className="ml-2 h-4 w-4" />
+                </Button>
+                <Button
+                  className="rounded-2xl text-white shadow-sm"
+                  style={{ backgroundColor: tenant.primaryColor }}
+                  onClick={() => navigate('/court')}
+                >
+                  Đặt sân ngay
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button
+                  variant="outline"
+                  className="hidden rounded-2xl sm:inline-flex"
+                  onClick={() => navigate('/auth/login')}
+                >
+                  Đăng nhập
+                </Button>
+                <Button
+                  className="rounded-2xl text-white hover:opacity-90"
+                  style={{ backgroundColor: tenant.primaryColor }}
+                  onClick={() => navigate('/auth/register')}
+                >
+                  Đăng ký dùng thử
+                </Button>
+              </>
+            )}
           </div>
         </div>
       </header>
@@ -65,10 +102,10 @@ export default function Dashboard() {
                 variant="outline"
                 className="rounded-full border-emerald-200 bg-emerald-50 px-4 py-2 text-emerald-700"
               >
-                Danh mục chức năng của OS
+                Hệ thống quản lý {tenant.name}
               </Badge>
               <SectionHeader
-                title="Một nơi để nhìn toàn bộ module của SportCenter OS"
+                title={`Toàn bộ module vận hành của ${tenant.name}`}
                 description="Quản lý bán hàng, sân thể thao, booking, đồ ăn thức uống, khách hàng và báo cáo trong một nền tảng duy nhất."
               />
               <div className="mt-8 flex flex-wrap gap-3">
@@ -92,8 +129,8 @@ export default function Dashboard() {
         <section className="mx-auto max-w-7xl px-6 py-10 lg:px-8">
           <div className="grid gap-4 lg:grid-cols-4">
             <QuickActionCard
-              title="Tạo đơn bán hàng"
-              description="Mở nhanh POS để tạo đơn và thanh toán tại quầy."
+              title="Cửa hàng dụng cụ"
+              description="Kinh doanh vợt, giày và phụ kiện thể thao cao cấp."
               href="/shop"
             />
             <QuickActionCard
@@ -102,8 +139,8 @@ export default function Dashboard() {
               href="/court"
             />
             <QuickActionCard
-              title="Order đồ uống"
-              description="Tạo nhanh order F&B theo sân hoặc theo booking."
+              title="Menu & Dịch vụ"
+              description="Order nước uống, đồ ăn và dịch vụ hỗ trợ tại sân."
               href="/service"
             />
             <QuickActionCard

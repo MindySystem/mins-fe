@@ -1,6 +1,8 @@
 import { create } from 'zustand'
 import { devtools, persist } from 'zustand/middleware'
 
+import { getTenantFromHostname, type TenantConfig } from '@/utils/tenant.util'
+
 export interface User {
   id: string
   name: string
@@ -10,8 +12,10 @@ export interface User {
 
 interface AppState {
   user: User | null
+  tenant: TenantConfig
   isLoading: boolean
   setUser: (user: User | null) => void
+  setTenant: (tenant: TenantConfig) => void
   setLoading: (isLoading: boolean) => void
   logout: () => void
 }
@@ -21,9 +25,11 @@ export const useAppStore = create<AppState>()(
     persist(
       (set) => ({
         user: null,
+        tenant: getTenantFromHostname(),
         isLoading: false,
 
         setUser: (user) => set({ user }),
+        setTenant: (tenant) => set({ tenant }),
         setLoading: (isLoading) => set({ isLoading }),
         logout: () => {
           localStorage.removeItem('access_token')
@@ -31,8 +37,8 @@ export const useAppStore = create<AppState>()(
         },
       }),
       {
-        name: 'sportcenter-storage', // name of item in localStorage
-        partialize: (state) => ({ user: state.user }), // only persist the user
+        name: 'sportcenter-storage',
+        partialize: (state) => ({ user: state.user }),
       },
     ),
     { name: 'AppStore' },
