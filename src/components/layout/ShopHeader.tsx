@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   ChevronDown,
@@ -15,6 +15,7 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 import { useAppStore } from '@/store/useAppStore'
+
 import { MegaMenu } from './MegaMenu'
 
 interface ShopHeaderProps {
@@ -26,7 +27,7 @@ export function ShopHeader({ searchQuery = '', onSearchChange }: ShopHeaderProps
   const { tenant } = useAppStore()
   const navigate = useNavigate()
   const [isMegaMenuOpen, setIsMegaMenuOpen] = useState(false)
-  const menuTimerRef = useRef<any>(null)
+  const menuTimerRef = useRef<number | null>(null)
 
   const handleMenuEnter = () => {
     if (menuTimerRef.current) clearTimeout(menuTimerRef.current)
@@ -136,7 +137,7 @@ export function ShopHeader({ searchQuery = '', onSearchChange }: ShopHeaderProps
       {/* Navigation Menu */}
       <div className="bg-red-600">
         <div className="mx-auto max-w-7xl px-6">
-          <nav className="flex items-center relative">
+          <nav className="relative flex items-center">
             {[
               { name: 'Hệ thống', path: '/' },
               { name: 'Trang chủ Shop', path: '/shop' },
@@ -161,15 +162,20 @@ export function ShopHeader({ searchQuery = '', onSearchChange }: ShopHeaderProps
               >
                 {item.name}
                 {(item.name === 'Sản phẩm' || item.name === 'Hướng dẫn') && (
-                  <ChevronDown className={cn("h-3 w-3 opacity-70 transition-transform", item.name === 'Sản phẩm' && isMegaMenuOpen && "rotate-180")} />
+                  <ChevronDown
+                    className={cn(
+                      'h-3 w-3 opacity-70 transition-transform',
+                      item.name === 'Sản phẩm' && isMegaMenuOpen && 'rotate-180',
+                    )}
+                  />
                 )}
               </div>
             ))}
 
-            <div 
+            <div
               onMouseEnter={handleMenuEnter}
               onMouseLeave={handleMenuLeave}
-              className="absolute left-0 top-full w-full"
+              className="absolute top-full left-0 w-full"
             >
               <MegaMenu isOpen={isMegaMenuOpen} />
             </div>

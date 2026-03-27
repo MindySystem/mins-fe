@@ -204,14 +204,34 @@ export const shopService = {
   },
   getFeaturedCategories: () => {
     return [
-      { id: 'vot', name: 'Vợt Cầu Lông', image: '/images/shop/categories/rackets.png', icon: 'LayoutGrid' },
-      { id: 'giay', name: 'Giày Cầu Lông', image: '/images/shop/categories/shoes.png', icon: 'ShoppingBag' },
-      { id: 'ao', name: 'Áo Cầu Lông', image: '/images/shop/categories/apparel.png', icon: 'Package' },
-      { id: 'balo', name: 'Bao Vợt / Balo', image: '/images/shop/categories/bags.png', icon: 'MapPin' },
+      {
+        id: 'vot',
+        name: 'Vợt Cầu Lông',
+        image: '/images/shop/categories/rackets.png',
+        icon: 'LayoutGrid',
+      },
+      {
+        id: 'giay',
+        name: 'Giày Cầu Lông',
+        image: '/images/shop/categories/shoes.png',
+        icon: 'ShoppingBag',
+      },
+      {
+        id: 'ao',
+        name: 'Áo Cầu Lông',
+        image: '/images/shop/categories/apparel.png',
+        icon: 'Package',
+      },
+      {
+        id: 'balo',
+        name: 'Bao Vợt / Balo',
+        image: '/images/shop/categories/bags.png',
+        icon: 'MapPin',
+      },
     ]
   },
   getFeaturedProducts: async (type: 'new' | 'hot' | 'sale') => {
-    if (type === 'sale') return MOCK_PRODUCTS.filter(p => p.discount)
+    if (type === 'sale') return MOCK_PRODUCTS.filter((p) => p.discount)
     if (type === 'hot') return MOCK_PRODUCTS.slice(0, 4)
     return MOCK_PRODUCTS.slice(2, 6)
   },

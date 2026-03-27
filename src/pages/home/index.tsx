@@ -87,14 +87,30 @@ const SectionHeader = ({
   </div>
 )
 
+interface Banner {
+  id: string
+  title: string
+  image: string
+  link: string
+}
+
+interface News {
+  id: string
+  title: string
+  image: string
+  category: string
+  date: string
+  summary: string
+}
+
 export default function HomePage() {
   const navigate = useNavigate()
-  const [banners, setBanners] = useState<any[]>([])
-  const [categories, setCategories] = useState(shopService.getFeaturedCategories())
+  const [banners, setBanners] = useState<Banner[]>([])
+  const [categories] = useState(shopService.getFeaturedCategories())
   const [newProducts, setNewProducts] = useState<Product[]>([])
   const [hotProducts, setHotProducts] = useState<Product[]>([])
   const [saleProducts, setSaleProducts] = useState<Product[]>([])
-  const [news, setNews] = useState<any[]>([])
+  const [news, setNews] = useState<News[]>([])
   const [activeBanner, setActiveBanner] = useState(0)
 
   useEffect(() => {
@@ -272,7 +288,7 @@ export default function HomePage() {
               Chương trình áp dụng cho hàng trăm sản phẩm từ các thương hiệu lớn như Yonex, Lining,
               Victor...
             </p>
-            <Button 
+            <Button
               className="h-12 rounded-full bg-white px-10 font-black text-red-600 uppercase hover:bg-white/90"
               onClick={() => navigate('/shop/products')}
             >

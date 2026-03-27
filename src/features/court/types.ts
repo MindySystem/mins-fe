@@ -7,7 +7,9 @@ export interface CourtFacility {
   id: string
   name: string
   address: string
-  distance: number // in km
+  distance: number // in km (fallback/hardcoded)
+  lat?: number
+  lng?: number
   rating: number // 1-5
   imageUrl: string
   type: CourtType // Primary sport

@@ -8,10 +8,10 @@ import Dashboard from '@/pages/dashboard'
 import UnauthorizedPage from '@/pages/error/401'
 import NotFoundPage from '@/pages/error/404'
 import ServerErrorPage from '@/pages/error/500'
+import ComingSoonPage from '@/pages/error/coming-soon'
 import HomePage from '@/pages/home'
 import ServicePage from '@/pages/service'
 import ShopPage from '@/pages/shop'
-import ComingSoonPage from '@/pages/error/coming-soon'
 
 import App from '../App'
 

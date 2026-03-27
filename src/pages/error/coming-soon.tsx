@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Clock, Bell } from 'lucide-react'
+import { ArrowLeft, Bell,Clock } from 'lucide-react'
+
 import { Button } from '@/components/ui/button'
 
 export default function ComingSoonPage() {
