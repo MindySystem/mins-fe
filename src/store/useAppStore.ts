@@ -3,11 +3,15 @@ import { devtools, persist } from 'zustand/middleware'
 
 import { getTenantFromHostname, type TenantConfig } from '@/utils/tenant.util'
 
+export type UserRole = 'admin' | 'user' | 'shop_manager' | 'staff'
+
 export interface User {
-  id: string
+  id: number
   name: string
   email: string
-  role: 'admin' | 'shop_manager' | 'staff'
+  phone?: string
+  role: UserRole
+  createdAt?: string
 }
 
 interface AppState {

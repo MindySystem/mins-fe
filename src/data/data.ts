@@ -1,5 +1,6 @@
 import {
   BarChart3,
+  CalendarDays,
   CalendarRange,
   CreditCard,
   LayoutGrid,
@@ -55,6 +56,15 @@ export const modules: ModuleItem[] = [
     icon: CalendarRange,
     items: ['Lịch sân', 'Đặt sân', 'Check-in', 'Hủy / đổi booking'],
     href: '/court/booking',
+  },
+  {
+    title: 'Buổi cầu lông',
+    description: 'Tạo và quản lý các buổi cầu lông, đăng ký thành viên, điểm danh và thu phí.',
+    category: 'court',
+    badge: 'Sessions',
+    icon: CalendarDays,
+    items: ['Danh sách buổi', 'Đăng ký tham gia', 'Điểm danh', 'Chia phí sân'],
+    href: '/sessions',
   },
   {
     title: 'Order tại sân',
@@ -157,6 +167,8 @@ export function getBadgeClassName(badge: string) {
       return 'bg-violet-50 text-violet-700 border-violet-200'
     case 'Reports':
       return 'bg-indigo-50 text-indigo-700 border-indigo-200'
+    case 'Sessions':
+      return 'bg-teal-50 text-teal-700 border-teal-200'
     default:
       return 'bg-slate-100 text-slate-700 border-slate-200'
   }

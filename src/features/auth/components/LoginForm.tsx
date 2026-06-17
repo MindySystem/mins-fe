@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import type { LoginRequest } from '@/features/auth/services/auth.service'
 import { authService, loginSchema } from '@/features/auth/services/auth.service'
-import { useAppStore, type User } from '@/store/useAppStore'
+import { useAppStore } from '@/store/useAppStore'
 
 export function LoginForm() {
   const navigate = useNavigate()
@@ -30,10 +30,10 @@ export function LoginForm() {
     try {
       const response = await authService.login(data)
       localStorage.setItem('access_token', response.token)
-      setUser(response.user as User)
+      setUser(response.user)
       navigate('/')
-    } catch {
-      setServerError('Tài khoản hoặc mật khẩu không chính xác')
+    } catch (err) {
+      setServerError(err instanceof Error ? err.message : 'Đăng nhập thất bại')
     } finally {
       setLoading(false)
     }

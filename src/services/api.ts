@@ -2,10 +2,11 @@ import axios, { AxiosError, type InternalAxiosRequestConfig } from 'axios'
 
 // Create an Axios instance with base configuration
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api',
+  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api',
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
+    Accept: 'application/json',
   },
 })
 
@@ -32,8 +33,11 @@ api.interceptors.response.use(
     if (error.response) {
       const { status } = error.response
       if (status === 401) {
-        console.error('Unauthorized access. Redirecting to login...')
         localStorage.removeItem('access_token')
+        // Avoid logging from server-side / scripts
+        if (typeof window !== 'undefined') {
+          console.error('Unauthorized access.')
+        }
       } else if (status === 403) {
         console.error('Forbidden access.')
       } else if (status >= 500) {
