@@ -7,6 +7,7 @@ import {
   LogOut,
   Plus,
   ShieldCheck,
+  Sparkles,
   User as UserIcon,
   UserCircle2,
 } from 'lucide-react'
@@ -31,8 +32,8 @@ const tabs = [
 ] as const
 
 export default function SessionLayout() {
-  const user = useAppStore((s) => s.user)
-  const isAdmin = useAppStore((s) => s.user?.role === 'admin')
+  const { user, tenant } = useAppStore()
+  const isAdmin = user?.role === 'admin'
   const location = useLocation()
   const navigate = useNavigate()
   const { logout, busy } = useLogout()
@@ -43,36 +44,35 @@ export default function SessionLayout() {
     <div className="min-h-screen bg-slate-50/50">
       <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/85 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-3 py-3 sm:px-6">
-          {/* Left: back + brand */}
-          <div className="flex items-center gap-1 sm:gap-2">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="h-9 gap-1 rounded-lg px-2 text-slate-500 hover:bg-slate-100 sm:gap-1.5 sm:px-3"
-              onClick={() => (atRoot ? navigate('/') : navigate(-1))}
-              aria-label={atRoot ? 'Về Dashboard' : 'Quay lại'}
-            >
-              <ArrowLeft className="h-4 w-4" />
-              <span className="hidden sm:inline">
-                {atRoot ? 'Về Dashboard' : 'Quay lại'}
-              </span>
-            </Button>
-
+          {/* Left: Dashboard Logo + back (conditional) + module brand */}
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            {/* Logo Dashboard */}
             <Link
-              to="/sessions"
-              className="flex items-center gap-2 rounded-lg px-1 py-1 text-slate-900 hover:bg-slate-100 sm:gap-2 sm:px-2"
+              to="/"
+              className="flex items-center gap-1.5 rounded-lg py-1 hover:opacity-90"
+              aria-label="Về trang chủ"
             >
-              <div className="grid h-8 w-8 place-items-center rounded-lg bg-slate-900 text-white sm:h-9 sm:w-9">
-                <CalendarDays className="h-4 w-4" />
-              </div>
-              <div className="hidden sm:block">
-                <div className="text-sm font-bold leading-tight sm:text-base">Cầu lông</div>
-                <div className="text-[11px] leading-tight text-slate-500">
-                  Quản lý buổi & đăng ký
-                </div>
+              <div
+                className="flex h-8 w-8 items-center justify-center rounded-xl text-white shadow-xs sm:h-9 sm:w-9"
+                style={{ backgroundColor: tenant.primaryColor }}
+              >
+                <Sparkles className="h-4 w-4 sm:h-4.5 sm:w-4.5" />
               </div>
             </Link>
+
+            {/* Back button (Only shown when not at root) */}
+            {!atRoot && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-8 w-8 rounded-lg p-0 text-slate-500 hover:bg-slate-100"
+                onClick={() => navigate(-1)}
+                aria-label="Quay lại"
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+            )}
           </div>
 
           {/* Center: tabs (collapse to icon on mobile) */}
@@ -86,9 +86,7 @@ export default function SessionLayout() {
                   to={t.to}
                   className={cn(
                     'inline-flex h-9 items-center gap-1.5 rounded-lg px-2.5 text-sm font-medium transition sm:px-3',
-                    active
-                      ? 'bg-slate-900 text-white'
-                      : 'text-slate-600 hover:bg-slate-100',
+                    active ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100',
                   )}
                 >
                   <Icon className="h-4 w-4" />

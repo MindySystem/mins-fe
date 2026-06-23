@@ -1,0 +1,311 @@
+import { useEffect, useState } from 'react'
+import { Link, useParams } from 'react-router-dom'
+
+import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { StatusBadge } from '@/features/sessions/components/StatusBadge'
+import { registrationService } from '@/features/sessions/services/registration.service'
+import { sessionService } from '@/features/sessions/services/session.service'
+import { userService } from '@/features/sessions/services/user.service'
+import type { BadmintonSession, Registration } from '@/features/sessions/types'
+import {
+  formatSessionDateTime,
+  formatVND,
+} from '@/features/sessions/utils/format'
+import { cn } from '@/lib/utils'
+import type { User } from '@/store/useAppStore'
+import { useAppStore } from '@/store/useAppStore'
+
+export function UserSessionDetail() {
+  const { id } = useParams<{ id: string }>()
+  const user = useAppStore((s) => s.user)
+  const [session, setSession] = useState<BadmintonSession | null>(null)
+  const [registrations, setRegistrations] = useState<Registration[]>([])
+  const [users, setUsers] = useState<User[]>([])
+  const [userMap, setUserMap] = useState<Map<number, User>>(new Map())
+  const [loading, setLoading] = useState(true)
+  const [confirmCancel, setConfirmCancel] = useState(false)
+  const [actionError, setActionError] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+
+  async function load() {
+    if (!id) return
+    setLoading(true)
+    try {
+      const [s, r] = await Promise.all([
+        sessionService.get(id),
+        registrationService.listBySession(id).catch(() => []),
+      ])
+      setSession(s)
+      setRegistrations(r)
+
+      // Ưu tiên user đã embed trong response; chỉ fallback lookup khi thiếu
+      const embedded = r.map((reg) => reg.user).filter((u): u is User => Boolean(u))
+      const missing = r.map((reg) => reg.userId).filter((uid) => !embedded.some((u) => u.id === uid))
+
+      if (missing.length) {
+        const looked = await userService.lookup(missing).catch(() => [])
+        setUserMap(new Map([...embedded.map((u) => [u.id, u]), ...looked.map((u) => [u.id, u])]))
+      } else {
+        setUserMap(new Map(embedded.map((u) => [u.id, u])))
+      }
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : 'Không tải được buổi')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    load()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id])
+
+  if (loading) {
+    return <div className="h-64 animate-pulse rounded-2xl bg-slate-100" />
+  }
+
+  if (!session) {
+    return (
+      <NotFound
+        message="Buổi không tồn tại hoặc đã bị xóa."
+        backTo="/sessions"
+        backLabel="Về danh sách buổi"
+      />
+    )
+  }
+
+  const myReg = user ? registrations.find((r) => r.userId === user.id) : undefined
+  const isFull = registrations.length >= session.maxParticipants
+  const isCancelled = session.status === 'cancelled' || session.status === 'finished'
+  const canRegister = session.status === 'open' && !isFull && !myReg
+
+  async function handleRegister() {
+    if (!session) return
+    setBusy(true)
+    setActionError(null)
+    const result = await registrationService.register(session.id)
+    setBusy(false)
+    if (!result.ok) {
+      setActionError(result.error)
+      return
+    }
+    await load()
+  }
+
+  async function handleCancel() {
+    if (!myReg) return
+    setBusy(true)
+    try {
+      await registrationService.cancel(myReg.id)
+      setConfirmCancel(false)
+      await load()
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : 'Không hủy được')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <Link
+        to="/sessions"
+        className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700"
+      >
+        ← Danh sách buổi
+      </Link>
+
+      <div
+        className={cn(
+          'relative overflow-hidden rounded-2xl border-2 bg-white p-5 sm:p-6',
+          myReg ? 'border-emerald-300' : 'border-slate-200',
+        )}
+      >
+        <div className="absolute -right-6 -top-6 text-9xl opacity-5">🏸</div>
+        <div className="relative">
+          <div className="flex items-center gap-2">
+            <StatusBadge status={session.status} />
+            {myReg && (
+              <span className="rounded-full bg-emerald-500 px-2 py-0.5 text-[10px] font-bold text-white uppercase">
+                ✓ Bạn đã đăng ký
+              </span>
+            )}
+          </div>
+          <h2 className="mt-2 text-2xl font-bold text-slate-900 sm:text-3xl">{session.title}</h2>
+
+          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <HeroInfo
+              icon="🗓️"
+              label="Thời gian"
+              value={formatSessionDateTime(session.date, session.startTime, session.endTime)}
+            />
+            <HeroInfo icon="📍" label="Địa điểm" value={session.location} />
+            <HeroInfo icon="💰" label="Phí sân" value={formatVND(session.courtFee)} />
+          </div>
+
+          {session.description && (
+            <div className="mt-4 rounded-lg bg-slate-50 px-4 py-3 text-sm text-slate-700">
+              {session.description}
+            </div>
+          )}
+
+          {actionError && (
+            <div className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">
+              {actionError}
+            </div>
+          )}
+
+          <div className="mt-5 flex flex-wrap items-center gap-2">
+            {!isCancelled && (
+              <>
+                {myReg ? (
+                  <>
+                    <div className="flex items-center gap-2 text-sm text-emerald-700">
+                      <span className="grid h-8 w-8 place-items-center rounded-full bg-emerald-100 text-base">
+                        ✓
+                      </span>
+                      <span className="font-medium">Bạn đã đăng ký buổi này</span>
+                    </div>
+                    {session.status === 'open' && (
+                      <Button variant="outline" onClick={() => setConfirmCancel(true)}>
+                        Hủy đăng ký
+                      </Button>
+                    )}
+                  </>
+                ) : canRegister ? (
+                  <Button onClick={handleRegister} disabled={busy} className="h-12 px-6 text-base">
+                    🏸 Đăng ký tham gia
+                  </Button>
+                ) : (
+                  <Button disabled className="h-12 px-6 text-base">
+                    {isFull ? 'Buổi đã đủ người' : 'Đang đóng đăng ký'}
+                  </Button>
+                )}
+              </>
+            )}
+          </div>
+
+          <p className="mt-3 text-xs text-slate-500">
+            {registrations.length}/{session.maxParticipants} thành viên đã đăng ký
+          </p>
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-slate-200 bg-white p-5">
+        <h3 className="text-sm font-semibold text-slate-900">
+          Ai đang tham gia ({registrations.length})
+        </h3>
+        {registrations.length === 0 ? (
+          <p className="mt-3 text-sm text-slate-500">Chưa có ai đăng ký. Là người đầu tiên nhé!</p>
+        ) : (
+          <ul className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {registrations.map((r) => {
+              const u = userMap.get(r.userId) || users.find((x) => x.id === r.userId)
+              const fullName = u?.name ?? '(đã xóa)'
+              const isMe = u?.id === user?.id
+              return (
+                <li
+                  key={r.id}
+                  className={cn(
+                    'flex items-center gap-3 rounded-lg border px-3 py-2',
+                    isMe ? 'border-emerald-200 bg-emerald-50' : 'border-slate-100',
+                  )}
+                >
+                  <div
+                    className={cn(
+                      'grid h-9 w-9 place-items-center rounded-full text-sm font-semibold',
+                      isMe ? 'bg-emerald-200 text-emerald-800' : 'bg-slate-100 text-slate-600',
+                    )}
+                  >
+                    {fullName[0]?.toUpperCase() ?? '?'}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className="truncate text-sm font-medium text-slate-900">
+                        {fullName}
+                      </span>
+                      {isMe && (
+                        <span className="rounded bg-emerald-200 px-1 py-0.5 text-[9px] font-bold text-emerald-800">
+                          BẠN
+                        </span>
+                      )}
+                    </div>
+                    {r.attended && (
+                      <span className="text-xs text-emerald-600">✓ Đã điểm danh</span>
+                    )}
+                  </div>
+                </li>
+              )
+            })}
+          </ul>
+        )}
+      </div>
+
+      <Dialog open={confirmCancel} onOpenChange={setConfirmCancel}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Hủy đăng ký</DialogTitle>
+            <DialogDescription>
+              Bạn có chắc muốn hủy đăng ký buổi{' '}
+              <span className="font-semibold text-slate-900">{session.title}</span>?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              disabled={busy}
+              onClick={() => setConfirmCancel(false)}
+            >
+              Đóng
+            </Button>
+            <Button variant="destructive" onClick={handleCancel} disabled={busy}>
+              Hủy đăng ký
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  )
+}
+
+function HeroInfo({ icon, label, value }: { icon: string; label: string; value: string }) {
+  return (
+    <div className="flex items-start gap-2 rounded-lg bg-slate-50 px-3 py-2.5">
+      <div className="text-lg">{icon}</div>
+      <div className="min-w-0 flex-1">
+        <div className="text-[11px] font-medium tracking-wide text-slate-500 uppercase">
+          {label}
+        </div>
+        <div className="mt-0.5 text-sm font-medium break-words text-slate-900">{value}</div>
+      </div>
+    </div>
+  )
+}
+
+function NotFound({
+  message,
+  backTo,
+  backLabel,
+}: {
+  message: string
+  backTo: string
+  backLabel: string
+}) {
+  return (
+    <div className="rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center">
+      <div className="text-4xl">🤔</div>
+      <p className="mt-2 text-sm text-slate-500">{message}</p>
+      <Link to={backTo} className="mt-3 inline-block text-sm text-slate-900 hover:underline">
+        ← {backLabel}
+      </Link>
+    </div>
+  )
+}

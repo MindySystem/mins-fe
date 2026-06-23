@@ -71,7 +71,7 @@ export default function Dashboard() {
                 <Sparkles className="h-4 w-4 sm:h-5 sm:w-5" />
               </div>
               <h1
-                className="truncate text-lg font-bold sm:text-3xl"
+                className="hidden truncate text-lg font-bold sm:inline sm:text-3xl"
                 style={{ color: tenant.primaryColor }}
               >
                 {tenant.name}
@@ -102,7 +102,7 @@ export default function Dashboard() {
                   onClick={() => navigate('/sessions')}
                 >
                   <CalendarDays className="h-4 w-4" />
-                  <span className="hidden sm:inline">Buổi cầu lông</span>
+                  <span>Buổi cầu lông</span>
                 </Button>
 
                 <UserMenu
@@ -187,7 +187,7 @@ export default function Dashboard() {
                   onClick={() => navigate('/sessions')}
                 >
                   <CalendarDays className="mr-1.5 h-4 w-4" />
-                  Quản lý buổi cầu lông
+                  Lịch cầu lông hôm nay
                 </Button>
                 <Button
                   variant="outline"
@@ -341,10 +341,7 @@ function UserMenu({
           </DropdownMenuItem>
         )}
         <DropdownMenuSeparator />
-        <DropdownMenuItem
-          className="cursor-pointer"
-          onClick={() => onNavigateProfile()}
-        >
+        <DropdownMenuItem className="cursor-pointer" onClick={() => onNavigateProfile()}>
           <UserIcon className="mr-2 h-4 w-4" />
           Hồ sơ
         </DropdownMenuItem>
