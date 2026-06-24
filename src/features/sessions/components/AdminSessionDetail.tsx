@@ -7,12 +7,14 @@ import { sessionService } from '@/features/sessions/services/session.service'
 import { userService } from '@/features/sessions/services/user.service'
 import type { BadmintonSession, Registration } from '@/features/sessions/types'
 import {
+  COURT_FEE_TYPE_LABELS,
   formatSessionDateTime,
   formatVND,
 } from '@/features/sessions/utils/format'
 import { cn } from '@/lib/utils'
 import type { User } from '@/store/useAppStore'
 import { useAppStore } from '@/store/useAppStore'
+import { genderLabel, skillLevelLabel } from '@/utils/userMeta'
 
 export function AdminSessionDetail() {
   const { id } = useParams<{ id: string }>()
@@ -73,6 +75,9 @@ export function AdminSessionDetail() {
     collected: registrations.reduce((s, r) => s + r.amountPaid, 0),
     expected: registrations.reduce((s, r) => s + r.amountDue, 0),
   }
+  const courtDirectionUrl = session.court
+    ? session.court.mapUrl || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(session.court.address)}`
+    : null
 
   return (
     <div className="space-y-4">
@@ -105,11 +110,24 @@ export function AdminSessionDetail() {
             <div className="flex items-center gap-2">
               <h2 className="text-lg font-semibold text-slate-900">{session.title}</h2>
               <StatusBadge status={session.status} />
+              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase text-slate-600">
+                {COURT_FEE_TYPE_LABELS[session.type ?? session.courtFeeType]}
+              </span>
             </div>
             <p className="mt-1 text-sm text-slate-500">
               {formatSessionDateTime(session.date, session.startTime, session.endTime)} ·{' '}
               {session.location}
             </p>
+            {courtDirectionUrl && (
+              <a
+                href={courtDirectionUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-2 inline-flex rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+              >
+                Chỉ đường đến {session.court?.name || 'sân'}
+              </a>
+            )}
           </div>
         </div>
 
@@ -123,6 +141,28 @@ export function AdminSessionDetail() {
               stats.expected || session.courtFee,
             )}`}
           />
+        </div>
+
+        <div className="mt-4 rounded-lg border border-slate-100 bg-slate-50/70 p-4 text-sm text-slate-600">
+          {session.type === 'fixed' || session.courtFeeType === 'fixed' ? (
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <div className="flex justify-between">
+                <span>Phí Nam:</span>
+                <span className="font-semibold text-slate-900">{formatVND(session.fixedFeeMale)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Phí Nữ:</span>
+                <span className="font-semibold text-slate-900">{formatVND(session.fixedFeeFemale)}</span>
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <div className="flex justify-between">
+                <span>Cầu / phát sinh:</span>
+                <span className="font-semibold text-slate-900">{formatVND(session.shuttlecockPricePerTube)}</span>
+              </div>
+            </div>
+          )}
         </div>
 
         {session.description && (
@@ -165,6 +205,14 @@ export function AdminSessionDetail() {
                         <div className="text-xs text-slate-500">
                           {u?.phone ?? u?.email}
                         </div>
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
+                            {genderLabel(u?.gender)}
+                          </span>
+                          <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+                            {skillLevelLabel(u?.skillLevel)}
+                          </span>
+                        </div>
                       </div>
                     </div>
                     <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs">
@@ -201,6 +249,8 @@ export function AdminSessionDetail() {
               <thead className="bg-slate-50 text-left text-xs font-semibold tracking-wide text-slate-500 uppercase">
                 <tr>
                   <th className="px-4 py-2.5">Thành viên</th>
+                  <th className="px-4 py-2.5 text-center">Giới tính</th>
+                  <th className="px-4 py-2.5 text-center">Trình độ</th>
                   <th className="px-4 py-2.5 text-center">ĐD</th>
                   <th className="px-4 py-2.5 text-right">Phải đóng</th>
                   <th className="px-4 py-2.5 text-right">Đã đóng</th>
@@ -218,6 +268,8 @@ export function AdminSessionDetail() {
                         <div className="font-medium text-slate-900">{fullName}</div>
                         <div className="text-xs text-slate-500">{u?.phone ?? u?.email ?? '—'}</div>
                       </td>
+                      <td className="px-4 py-2.5 text-center text-slate-600">{genderLabel(u?.gender)}</td>
+                      <td className="px-4 py-2.5 text-center text-slate-600">{skillLevelLabel(u?.skillLevel)}</td>
                       <td className="px-4 py-2.5 text-center">
                         {r.attended ? (
                           <span className="text-emerald-600">✓</span>

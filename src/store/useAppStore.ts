@@ -4,6 +4,7 @@ import { devtools, persist } from 'zustand/middleware'
 import { getTenantFromHostname, type TenantConfig } from '@/utils/tenant.util'
 
 export type UserRole = 'admin' | 'user' | 'shop_manager' | 'staff'
+export type SkillLevel = 'beginner' | 'casual' | 'intermediate' | 'advanced'
 
 export interface User {
   id: number
@@ -11,6 +12,7 @@ export interface User {
   email: string
   phone?: string
   gender?: 'male' | 'female' | 'other'
+  skillLevel?: SkillLevel
   role: UserRole
   createdAt?: string
 }

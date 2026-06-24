@@ -1,13 +1,15 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowLeft, Mail, Phone, Shield, User as UserIcon, Edit2, Lock } from 'lucide-react'
+import { ArrowLeft, Mail, Phone, Shield, User as UserIcon, Edit2, Lock, Trophy } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
+import type { SkillLevel } from '@/store/useAppStore'
 import { useAppStore } from '@/store/useAppStore'
 import { authService } from '@/features/auth/services/auth.service'
+import { GENDER_LABELS, SKILL_LEVEL_OPTIONS, skillLevelLabel } from '@/utils/userMeta'
 
 export default function ProfilePage() {
   const user = useAppStore((s) => s.user)
@@ -19,6 +21,7 @@ export default function ProfilePage() {
   const [name, setName] = useState(user?.name || '')
   const [phone, setPhone] = useState(user?.phone || '')
   const [gender, setGender] = useState<'male' | 'female' | 'other'>(user?.gender || 'male')
+  const [skillLevel, setSkillLevel] = useState<SkillLevel>(user?.skillLevel || 'beginner')
   const [password, setPassword] = useState('')
 
   if (!user) {
@@ -46,6 +49,7 @@ export default function ProfilePage() {
         name,
         phone: phone || undefined,
         gender,
+        skillLevel,
         password: password || undefined,
       })
       setUser(response.user)
@@ -60,12 +64,6 @@ export default function ProfilePage() {
   }
 
   const initials = (user.name || user.email).trim().charAt(0).toUpperCase() || '?'
-
-  const genderLabels = {
-    male: 'Nam',
-    female: 'Nữ',
-    other: 'Khác',
-  }
 
   return (
     <div className="mx-auto max-w-2xl space-y-4">
@@ -87,6 +85,7 @@ export default function ProfilePage() {
               setName(user.name)
               setPhone(user.phone || '')
               setGender(user.gender || 'male')
+              setSkillLevel(user.skillLevel || 'beginner')
               setPassword('')
             }
             setIsEditing(!isEditing)
@@ -148,10 +147,31 @@ export default function ProfilePage() {
                           : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
                       )}
                     >
-                      {genderLabels[g]}
+                      {GENDER_LABELS[g]}
                     </button>
                   ))}
                 </div>
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">Trình độ tự đánh giá</label>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                {SKILL_LEVEL_OPTIONS.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => setSkillLevel(option.value)}
+                    className={cn(
+                      'flex h-10 items-center justify-center rounded-md border px-2 text-center text-sm font-medium transition-all',
+                      skillLevel === option.value
+                        ? 'border-slate-900 bg-slate-900 text-white font-bold'
+                        : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                    )}
+                  >
+                    {option.label}
+                  </button>
+                ))}
               </div>
             </div>
 
@@ -181,7 +201,8 @@ export default function ProfilePage() {
           <div className="divide-y divide-slate-100">
             <Row icon={Mail} label="Email" value={user.email} />
             <Row icon={Phone} label="Số điện thoại" value={user.phone || '—'} />
-            <Row icon={UserIcon} label="Giới tính" value={genderLabels[user.gender || 'male']} />
+            <Row icon={UserIcon} label="Giới tính" value={GENDER_LABELS[user.gender || 'male']} />
+            <Row icon={Trophy} label="Trình độ" value={skillLevelLabel(user.skillLevel)} badge />
             <Row icon={Shield} label="Vai trò" value={user.role} badge />
             <Row icon={UserIcon} label="Tham gia từ" value={user.createdAt?.slice(0, 10) || '—'} />
           </div>

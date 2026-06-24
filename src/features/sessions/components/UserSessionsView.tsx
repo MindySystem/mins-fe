@@ -8,6 +8,7 @@ import { sessionService } from '@/features/sessions/services/session.service'
 import { userService } from '@/features/sessions/services/user.service'
 import type { BadmintonSession, Registration } from '@/features/sessions/types'
 import {
+  COURT_FEE_TYPE_LABELS,
   formatSessionDateTime,
   formatVND,
   todayIso,
@@ -260,9 +261,19 @@ function SessionJoinCard({
           <div className="flex items-center gap-1.5">
             <span>💰</span>
             <span>
-              Phí sân{' '}
-              <strong className="text-slate-800">{formatVND(session.courtFee)}</strong>
+              {session.type === 'fixed' || session.courtFeeType === 'fixed'
+                ? 'Phí tham gia '
+                : 'Phí sân '}
+              <strong className="text-slate-800">
+                {session.type === 'fixed' || session.courtFeeType === 'fixed'
+                  ? `${formatVND(session.fixedFeeMale)} / ${formatVND(session.fixedFeeFemale)}`
+                  : formatVND(session.courtFee)}
+              </strong>
             </span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span>🏟️</span>
+            <span>{COURT_FEE_TYPE_LABELS[session.type ?? session.courtFeeType]}</span>
           </div>
         </dl>
       </div>

@@ -10,6 +10,7 @@ import {
   Sparkles,
   User as UserIcon,
   UserCircle2,
+  Settings2,
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -99,13 +100,22 @@ export default function SessionLayout() {
           {/* Right: admin create + user menu */}
           <div className="flex items-center gap-1.5 sm:gap-2">
             {isAdmin && (
-              <Link
-                to="/sessions/new"
-                className="inline-flex h-9 items-center gap-1 rounded-lg bg-slate-900 px-2.5 text-sm font-medium text-white hover:bg-slate-800 sm:gap-1.5 sm:px-3"
-              >
-                <Plus className="h-4 w-4" />
-                <span className="hidden sm:inline">Tạo buổi</span>
-              </Link>
+              <div className="flex items-center gap-1.5">
+                <Link
+                  to="/sessions/admin"
+                  className="inline-flex h-9 items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 sm:gap-1.5 sm:px-3"
+                >
+                  <Settings2 className="h-4 w-4" />
+                  <span className="hidden sm:inline">Quản trị</span>
+                </Link>
+                <Link
+                  to="/sessions/new"
+                  className="inline-flex h-9 items-center gap-1 rounded-lg bg-slate-900 px-2.5 text-sm font-medium text-white hover:bg-slate-800 sm:gap-1.5 sm:px-3"
+                >
+                  <Plus className="h-4 w-4" />
+                  <span className="hidden sm:inline">Tạo buổi</span>
+                </Link>
+              </div>
             )}
 
             {user ? <UserMenu busy={busy} onLogout={() => logout('/')} /> : <LoginButton />}
@@ -153,6 +163,14 @@ function UserMenu({ busy, onLogout }: { busy: boolean; onLogout: () => void }) {
             Tất cả buổi
           </Link>
         </DropdownMenuItem>
+        {user.role === 'admin' && (
+          <DropdownMenuItem className="cursor-pointer">
+            <Link to="/sessions/admin" className="flex w-full items-center">
+              <Settings2 className="mr-2 h-4 w-4" />
+              Quản trị sessions
+            </Link>
+          </DropdownMenuItem>
+        )}
         {user.role === 'admin' && (
           <DropdownMenuItem className="cursor-pointer">
             <Link to="/sessions/new" className="flex w-full items-center">

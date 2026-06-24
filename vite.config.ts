@@ -6,7 +6,7 @@ import { defineConfig } from "vite"
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
-    allowedHosts: ["mindytran.io.vn"]
+    allowedHosts: [process.env.VITE_ALLOWED_HOST || 'localhost']
   },
   resolve: {
     alias: {

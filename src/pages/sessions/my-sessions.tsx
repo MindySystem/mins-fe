@@ -107,7 +107,7 @@ export default function MySessionsPage() {
 
   async function handleCancel(regId: number) {
     const reg = regs.find((r) => r.id === regId)
-    if (!reg) return
+    if (!reg || reg.userConfirmedPaid || reg.adminConfirmedPaid) return
     setBusy(true)
     try {
       await registrationService.cancel(regId)
@@ -237,7 +237,7 @@ export default function MySessionsPage() {
                   >
                     Xem chi tiết
                   </Link>
-                  {session.status === 'open' && (
+                  {session.status === 'open' && !reg.userConfirmedPaid && !reg.adminConfirmedPaid && (
                     <button
                       type="button"
                       onClick={() => setConfirmCancelReg(reg.id)}
@@ -245,6 +245,11 @@ export default function MySessionsPage() {
                     >
                       Hủy đăng ký
                     </button>
+                  )}
+                  {(reg.userConfirmedPaid || reg.adminConfirmedPaid) && (
+                    <span className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-700">
+                      Đã xác nhận thanh toán, không thể hủy
+                    </span>
                   )}
                 </div>
               </div>

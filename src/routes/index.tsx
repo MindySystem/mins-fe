@@ -15,6 +15,7 @@ import ComingSoonPage from '@/pages/error/coming-soon'
 import ServicePage from '@/pages/service'
 import SessionDetailPage from '@/pages/sessions/detail'
 import SessionFormPage from '@/pages/sessions/form'
+import SessionAdminPage from '@/pages/sessions/admin'
 import SessionsListPage from '@/pages/sessions/list'
 import SessionManagePage from '@/pages/sessions/manage'
 import MySessionsPage from '@/pages/sessions/my-sessions'
@@ -101,6 +102,7 @@ const router = createBrowserRouter([
     ),
     children: [
       { path: 'sessions', element: <SessionsListPage /> },
+      { path: 'sessions/admin', element: <AdminRoute><SessionAdminPage /></AdminRoute> },
       { path: 'sessions/new', element: <AdminRoute><SessionFormPage /></AdminRoute> },
       { path: 'sessions/:id', element: <SessionDetailPage /> },
       {

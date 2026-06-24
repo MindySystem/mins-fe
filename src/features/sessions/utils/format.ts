@@ -1,4 +1,5 @@
 import type { SessionStatus } from '../types'
+import type { CourtFeeType } from '../types'
 
 export function formatVND(value: number): string {
   if (Number.isNaN(value) || value === null || value === undefined) return '—'
@@ -36,4 +37,9 @@ export const SESSION_STATUS_TONES: Record<SessionStatus, string> = {
   closed: 'bg-amber-50 text-amber-700 ring-amber-200',
   finished: 'bg-slate-100 text-slate-600 ring-slate-200',
   cancelled: 'bg-rose-50 text-rose-700 ring-rose-200',
+}
+
+export const COURT_FEE_TYPE_LABELS: Record<CourtFeeType, string> = {
+  fixed: 'Sân cố định',
+  custom: 'Sân tùy chỉnh',
 }

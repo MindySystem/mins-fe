@@ -40,4 +40,13 @@ export const userService = {
       stats: res.stats,
     }
   },
+
+  async updateRole(id: number | string, role: User['role']): Promise<User> {
+    const res = (await api.patch(`/users/${id}/role`, { role })) as { data: User }
+    return { ...res.data, id: Number(res.data.id) }
+  },
+
+  async resetPassword(id: number | string, password: string): Promise<void> {
+    await api.patch(`/users/${id}/password`, { password })
+  },
 }

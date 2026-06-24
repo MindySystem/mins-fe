@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
 import api from '@/services/api'
-import type { User } from '@/store/useAppStore'
+import type { SkillLevel, User } from '@/store/useAppStore'
 
 // --- Schemas (dùng cho react-hook-form + zod) ---
 
@@ -21,6 +21,9 @@ export const registerSchema = z.object({
     .or(z.literal('')),
   gender: z.enum(['male', 'female', 'other'], {
     message: 'Vui lòng chọn giới tính',
+  }),
+  skillLevel: z.enum(['beginner', 'casual', 'intermediate', 'advanced'], {
+    message: 'Vui lòng chọn trình độ',
   }),
   password: z.string().min(6, 'Mật khẩu cần ít nhất 6 ký tự'),
 })
@@ -88,6 +91,7 @@ export const authService = {
     name: string
     phone?: string
     gender: 'male' | 'female' | 'other'
+    skillLevel: SkillLevel
     password?: string
   }): Promise<{ message: string; user: User }> {
     try {

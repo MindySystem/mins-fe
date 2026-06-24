@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { Receipt, CheckCircle, AlertCircle, QrCode } from 'lucide-react'
+import { Receipt, CheckCircle, AlertCircle, QrCode, Navigation } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
@@ -18,12 +18,14 @@ import { sessionService } from '@/features/sessions/services/session.service'
 import { userService } from '@/features/sessions/services/user.service'
 import type { BadmintonSession, Registration } from '@/features/sessions/types'
 import {
+  COURT_FEE_TYPE_LABELS,
   formatSessionDateTime,
   formatVND,
 } from '@/features/sessions/utils/format'
 import { cn } from '@/lib/utils'
 import type { User } from '@/store/useAppStore'
 import { useAppStore } from '@/store/useAppStore'
+import { genderLabel, skillLevelLabel } from '@/utils/userMeta'
 
 export function UserSessionDetail() {
   const { id } = useParams<{ id: string }>()
@@ -91,6 +93,7 @@ export function UserSessionDetail() {
   const myReg = currentUser ? registrations.find((r) => r.userId === currentUser.id) : undefined
   const isFull = registrations.length >= session.maxParticipants
   const isCancelled = session.status === 'cancelled' || session.status === 'finished'
+  const isLockedRegistration = Boolean(myReg && (myReg.userConfirmedPaid || myReg.adminConfirmedPaid))
   const canRegister = session.status === 'open' && !isFull && !myReg
 
   async function handleRegister() {
@@ -109,6 +112,7 @@ export function UserSessionDetail() {
 
   async function handleCancel() {
     if (!myReg) return
+    if (isLockedRegistration) return
     setBusy(true)
     try {
       await registrationService.cancel(myReg.id)
@@ -139,6 +143,9 @@ export function UserSessionDetail() {
   // Calculate costs summary
   const extraCostsTotal = extraCosts.reduce((sum, item) => sum + item.amount, 0)
   const shuttlecockCostTotal = Math.round((session.shuttlecockPricePerTube / 12.0) * session.shuttlecocksUsed)
+  const courtDirectionUrl = session.court
+    ? session.court.mapUrl || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(session.court.address)}`
+    : null
 
   return (
     <div className="space-y-6">
@@ -178,8 +185,20 @@ export function UserSessionDetail() {
             />
             <HeroInfo icon="📍" label="Địa điểm" value={session.location} />
             <HeroInfo icon="🏸" label="Loại cầu" value={session.shuttlecock?.name || 'Chưa chọn'} />
+            <HeroInfo icon="🏟️" label="Loại sân" value={COURT_FEE_TYPE_LABELS[session.courtFeeType]} />
             <HeroInfo icon="👥" label="Thành viên" value={`${registrations.length}/${session.maxParticipants}`} />
           </div>
+
+          {courtDirectionUrl && (
+            <a
+              href={courtDirectionUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex h-9 items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+            >
+              <Navigation className="h-3.5 w-3.5" /> Chỉ đường đến {session.court?.name || 'sân'}
+            </a>
+          )}
 
           {session.description && (
             <div className="rounded-lg bg-slate-50 px-4 py-3 text-sm text-slate-700">
@@ -190,44 +209,55 @@ export function UserSessionDetail() {
           {/* Chi tiết chi phí */}
           <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-4 space-y-3">
             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1">
-              <Receipt className="h-3.5 w-3.5" /> Chi tiết chi phí chung
+              <Receipt className="h-3.5 w-3.5" /> {session.courtFeeType === 'fixed' ? 'Phí tham gia' : 'Chi tiết chi phí chung'}
             </h4>
-            <div className="grid grid-cols-1 gap-3 text-sm text-slate-600 sm:grid-cols-2">
-              <div className="flex justify-between border-b border-slate-100 pb-1.5 sm:border-0 sm:pb-0">
-                <span>Tiền thuê sân cố định:</span>
-                <span className="font-semibold text-slate-900">{formatVND(session.fixedCourtFee)}</span>
-              </div>
-              <div className="flex justify-between border-b border-slate-100 pb-1.5 sm:border-0 sm:pb-0">
-                <span>Chi phí cầu lông ({session.shuttlecocksUsed} quả):</span>
-                <span className="font-semibold text-slate-900">
-                  {formatVND(shuttlecockCostTotal)}
-                </span>
-              </div>
-              <div className="flex justify-between border-b border-slate-100 pb-1.5 sm:border-0 sm:pb-0">
-                <span>Phí riêng (Nam):</span>
-                <span className="font-semibold text-slate-900">{formatVND(session.fixedFeeMale)}</span>
-              </div>
-              <div className="flex justify-between border-b border-slate-100 pb-1.5 sm:border-0 sm:pb-0">
-                <span>Phí riêng (Nữ):</span>
-                <span className="font-semibold text-slate-900">{formatVND(session.fixedFeeFemale)}</span>
-              </div>
-              <div className="flex justify-between border-b border-slate-100 pb-1.5 sm:border-0 sm:pb-0 sm:col-span-2">
-                <span>Chi phí phát sinh:</span>
-                <span className="font-semibold text-slate-900">{formatVND(extraCostsTotal)}</span>
-              </div>
-            </div>
-            {extraCosts.length > 0 && (
-              <div className="bg-white rounded-lg p-2.5 border border-slate-100 space-y-1 mt-2">
-                <div className="text-[10px] uppercase font-bold text-slate-400">Danh mục phát sinh:</div>
-                <div className="space-y-1">
-                  {extraCosts.map((ec) => (
-                    <div key={ec.id} className="flex justify-between text-xs text-slate-500">
-                      <span>• {ec.name} {ec.note ? `(${ec.note})` : ''}</span>
-                      <span className="font-medium">{formatVND(ec.amount)}</span>
-                    </div>
-                  ))}
+            {session.courtFeeType === 'fixed' ? (
+              <div className="grid grid-cols-1 gap-3 text-sm text-slate-600 sm:grid-cols-2">
+                <div className="flex justify-between border-b border-slate-100 pb-1.5 sm:border-0 sm:pb-0">
+                  <span>Phí Nam:</span>
+                  <span className="font-semibold text-slate-900">{formatVND(session.fixedFeeMale)}</span>
+                </div>
+                <div className="flex justify-between border-b border-slate-100 pb-1.5 sm:border-0 sm:pb-0">
+                  <span>Phí Nữ:</span>
+                  <span className="font-semibold text-slate-900">{formatVND(session.fixedFeeFemale)}</span>
                 </div>
               </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-1 gap-3 text-sm text-slate-600 sm:grid-cols-2">
+                  <div className="flex justify-between border-b border-slate-100 pb-1.5 sm:border-0 sm:pb-0">
+                    <span>Chi phí cầu lông ({session.shuttlecocksUsed} quả):</span>
+                    <span className="font-semibold text-slate-900">
+                      {formatVND(shuttlecockCostTotal)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between border-b border-slate-100 pb-1.5 sm:border-0 sm:pb-0">
+                    <span>Phí riêng (Nam):</span>
+                    <span className="font-semibold text-slate-900">{formatVND(session.fixedFeeMale)}</span>
+                  </div>
+                  <div className="flex justify-between border-b border-slate-100 pb-1.5 sm:border-0 sm:pb-0">
+                    <span>Phí riêng (Nữ):</span>
+                    <span className="font-semibold text-slate-900">{formatVND(session.fixedFeeFemale)}</span>
+                  </div>
+                  <div className="flex justify-between border-b border-slate-100 pb-1.5 sm:border-0 sm:pb-0 sm:col-span-2">
+                    <span>Chi phí phát sinh:</span>
+                    <span className="font-semibold text-slate-900">{formatVND(extraCostsTotal)}</span>
+                  </div>
+                </div>
+                {extraCosts.length > 0 && (
+                  <div className="bg-white rounded-lg p-2.5 border border-slate-100 space-y-1 mt-2">
+                    <div className="text-[10px] uppercase font-bold text-slate-400">Danh mục phát sinh:</div>
+                    <div className="space-y-1">
+                      {extraCosts.map((ec) => (
+                        <div key={ec.id} className="flex justify-between text-xs text-slate-500">
+                          <span>• {ec.name} {ec.note ? `(${ec.note})` : ''}</span>
+                          <span className="font-medium">{formatVND(ec.amount)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </div>
 
@@ -242,10 +272,15 @@ export function UserSessionDetail() {
               <>
                 {myReg ? (
                   <>
-                    {session.status === 'open' && (
+                    {session.status === 'open' && !isLockedRegistration && (
                       <Button variant="outline" onClick={() => setConfirmCancel(true)} className="border-slate-200 bg-white">
                         Hủy đăng ký
                       </Button>
+                    )}
+                    {isLockedRegistration && (
+                      <div className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-700">
+                        Đã xác nhận thanh toán, không thể hủy
+                      </div>
                     )}
                   </>
                 ) : canRegister ? (
@@ -342,11 +377,82 @@ export function UserSessionDetail() {
           <p className="mt-3 text-sm text-slate-500">Chưa có ai đăng ký tham gia.</p>
         ) : (
           <div className="mt-4 overflow-hidden rounded-xl border border-slate-100">
-            <table className="min-w-full divide-y divide-slate-100 text-sm">
+            <div className="divide-y divide-slate-100 md:hidden">
+              {registrations.map((r) => {
+                const u = userMap.get(r.userId)
+                const fullName = u?.name ?? '(đã xóa)'
+                const isMe = u?.id === currentUser?.id
+
+                return (
+                  <div key={r.id} className={cn('p-3', isMe && 'bg-emerald-50/30')}>
+                    <div className="flex items-start gap-3">
+                      <div className={cn(
+                        'grid h-9 w-9 shrink-0 place-items-center rounded-full text-xs font-semibold',
+                        isMe ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'
+                      )}>
+                        {fullName[0]?.toUpperCase() ?? '?'}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className="font-semibold text-slate-900">{fullName}</span>
+                          {isMe && (
+                            <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-[9px] font-bold uppercase text-emerald-800">
+                              Bạn
+                            </span>
+                          )}
+                        </div>
+                        <div className="mt-0.5 text-xs text-slate-500">{u?.phone || u?.email || '—'}</div>
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
+                            {genderLabel(u?.gender)}
+                          </span>
+                          <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+                            {skillLevelLabel(u?.skillLevel)}
+                          </span>
+                          {r.attended ? (
+                            <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+                              Có mặt
+                            </span>
+                          ) : null}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                      <div className="rounded-lg bg-slate-50 px-2 py-1.5">
+                        <div className="text-slate-400">Phải đóng</div>
+                        <div className="font-semibold text-slate-900">{formatVND(r.amountDue)}</div>
+                      </div>
+                      <div className="rounded-lg bg-slate-50 px-2 py-1.5">
+                        <div className="text-slate-400">Đã đóng</div>
+                        <div className="font-semibold text-slate-900">{formatVND(r.amountPaid)}</div>
+                      </div>
+                    </div>
+                    <div className="mt-2">
+                      {r.adminConfirmedPaid ? (
+                        <span className="inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700 uppercase">
+                          Hoàn tất
+                        </span>
+                      ) : r.userConfirmedPaid ? (
+                        <span className="inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700 uppercase">
+                          Chờ duyệt
+                        </span>
+                      ) : (
+                        <span className="inline-flex rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-bold text-rose-700 uppercase">
+                          Chưa đóng
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+
+            <table className="hidden min-w-full divide-y divide-slate-100 text-sm md:table">
               <thead className="bg-slate-50 text-left text-xs font-semibold tracking-wider text-slate-500 uppercase">
                 <tr>
                   <th className="px-4 py-3">Thành viên</th>
                   <th className="px-4 py-3 text-center">Giới tính</th>
+                  <th className="px-4 py-3 text-center">Trình độ</th>
                   <th className="px-4 py-3 text-center">Có mặt</th>
                   <th className="px-4 py-3 text-right">Phải đóng</th>
                   <th className="px-4 py-3 text-right">Đã đóng</th>
@@ -357,32 +463,36 @@ export function UserSessionDetail() {
                 {registrations.map((r) => {
                   const u = userMap.get(r.userId)
                   const fullName = u?.name ?? '(đã xóa)'
-                  const genderText = u?.gender === 'female' ? 'Nữ' : u?.gender === 'male' ? 'Nam' : 'Khác'
                   const isMe = u?.id === currentUser?.id
 
                   return (
                     <tr key={r.id} className={cn('hover:bg-slate-50/50', isMe && 'bg-emerald-50/20')}>
-                      <td className="px-4 py-3 flex items-center gap-2">
-                        <div className={cn(
-                          'grid h-8 w-8 place-items-center rounded-full text-xs font-semibold',
-                          isMe ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'
-                        )}>
-                          {fullName[0]?.toUpperCase() ?? '?'}
-                        </div>
-                        <div>
-                          <div className="font-semibold text-slate-900 flex items-center gap-1.5">
-                            {fullName}
-                            {isMe && (
-                              <span className="rounded bg-emerald-100 px-1 py-0.2 text-[8px] font-bold text-emerald-800 uppercase">
-                                Bạn
-                              </span>
-                            )}
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <div className={cn(
+                            'grid h-8 w-8 place-items-center rounded-full text-xs font-semibold',
+                            isMe ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'
+                          )}>
+                            {fullName[0]?.toUpperCase() ?? '?'}
                           </div>
-                          <div className="text-[10px] text-slate-500">{u?.phone || u?.email || '—'}</div>
+                          <div>
+                            <div className="font-semibold text-slate-900 flex items-center gap-1.5">
+                              {fullName}
+                              {isMe && (
+                                <span className="rounded bg-emerald-100 px-1 py-0.2 text-[8px] font-bold text-emerald-800 uppercase">
+                                  Bạn
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-[10px] text-slate-500">{u?.phone || u?.email || '—'}</div>
+                          </div>
                         </div>
                       </td>
                       <td className="px-4 py-3 text-center text-slate-600">
-                        {genderText}
+                        {genderLabel(u?.gender)}
+                      </td>
+                      <td className="px-4 py-3 text-center text-slate-600">
+                        {skillLevelLabel(u?.skillLevel)}
                       </td>
                       <td className="px-4 py-3 text-center">
                         {r.attended ? (
@@ -587,24 +697,35 @@ export function AdminSessionDetail() {
         <div className="rounded-lg border border-slate-100 bg-slate-50/50 p-4 space-y-2 text-sm text-slate-600">
           <div className="text-xs font-bold text-slate-400 uppercase tracking-wider pb-1">Chi tiết chi phí cấu hình</div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            <div className="flex justify-between">
-              <span>Sân cố định:</span>
-              <span className="font-semibold text-slate-900">{formatVND(session.fixedCourtFee)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Cầu đã dùng ({session.shuttlecocksUsed} quả):</span>
-              <span className="font-semibold text-slate-900">
-                {formatVND(shuttlecockCostTotal)}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span>Phí Nam / Nữ:</span>
-              <span className="font-semibold text-slate-900">{formatVND(session.fixedFeeMale)} / {formatVND(session.fixedFeeFemale)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Phát sinh:</span>
-              <span className="font-semibold text-slate-900">{formatVND(extraCostsTotal)}</span>
-            </div>
+            {session.type === 'fixed' || session.courtFeeType === 'fixed' ? (
+              <>
+                <div className="flex justify-between">
+                  <span>Phí Nam:</span>
+                  <span className="font-semibold text-slate-900">{formatVND(session.fixedFeeMale)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Phí Nữ:</span>
+                  <span className="font-semibold text-slate-900">{formatVND(session.fixedFeeFemale)}</span>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex justify-between">
+                  <span>Cầu đã dùng ({session.shuttlecocksUsed} quả):</span>
+                  <span className="font-semibold text-slate-900">
+                    {formatVND(shuttlecockCostTotal)}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Phí Nam / Nữ:</span>
+                  <span className="font-semibold text-slate-900">{formatVND(session.fixedFeeMale)} / {formatVND(session.fixedFeeFemale)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Phát sinh:</span>
+                  <span className="font-semibold text-slate-900">{formatVND(extraCostsTotal)}</span>
+                </div>
+              </>
+            )}
           </div>
         </div>
 
@@ -635,6 +756,7 @@ export function AdminSessionDetail() {
               <tr>
                 <th className="px-4 py-3">Thành viên</th>
                 <th className="px-4 py-3 text-center">Giới tính</th>
+                <th className="px-4 py-3 text-center">Trình độ</th>
                 <th className="px-4 py-3 text-center">ĐD</th>
                 <th className="px-4 py-3 text-right">Phải đóng</th>
                 <th className="px-4 py-3 text-right">Đã đóng</th>
@@ -645,7 +767,6 @@ export function AdminSessionDetail() {
               {registrations.map((r) => {
                 const u = users.find((x) => x.id === r.userId)
                 const fullName = u?.name ?? '(đã xóa)'
-                const genderText = u?.gender === 'female' ? 'Nữ' : u?.gender === 'male' ? 'Nam' : 'Khác'
 
                 return (
                   <tr key={r.id} className="hover:bg-slate-50/30">
@@ -653,7 +774,8 @@ export function AdminSessionDetail() {
                       <div className="font-semibold text-slate-900">{fullName}</div>
                       <div className="text-xs text-slate-500">{u?.phone ?? u?.email ?? '—'}</div>
                     </td>
-                    <td className="px-4 py-3 text-center text-slate-600">{genderText}</td>
+                    <td className="px-4 py-3 text-center text-slate-600">{genderLabel(u?.gender)}</td>
+                    <td className="px-4 py-3 text-center text-slate-600">{skillLevelLabel(u?.skillLevel)}</td>
                     <td className="px-4 py-3 text-center">
                       {r.attended ? (
                         <span className="text-emerald-600 font-bold">✓</span>

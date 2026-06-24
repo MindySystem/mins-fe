@@ -25,6 +25,7 @@ import type {
   RegistrationFormData,
 } from '@/features/sessions/types'
 import {
+  COURT_FEE_TYPE_LABELS,
   formatSessionDateTime,
   formatVND,
 } from '@/features/sessions/utils/format'
@@ -32,6 +33,7 @@ import { useDebounce } from '@/hooks/useDebounce'
 import { cn } from '@/lib/utils'
 import type { User } from '@/store/useAppStore'
 import { useAppStore } from '@/store/useAppStore'
+import { genderLabel, skillLevelLabel } from '@/utils/userMeta'
 
 export default function SessionManagePage() {
   const { id } = useParams<{ id: string }>()
@@ -56,6 +58,7 @@ export default function SessionManagePage() {
   // Shuttlecock count updates
   const [shuttlecockId, setShuttlecockId] = useState<string>('null')
   const [shuttlecocksUsed, setShuttlecocksUsed] = useState(0)
+  const [fixedCourtFee, setFixedCourtFee] = useState(0)
 
   // Members modal
   const [toRemove, setToRemove] = useState<Registration | null>(null)
@@ -93,6 +96,7 @@ export default function SessionManagePage() {
       // Initial shuttlecock configurations
       setShuttlecockId(s.shuttlecockId ? String(s.shuttlecockId) : 'null')
       setShuttlecocksUsed(s.shuttlecocksUsed || 0)
+      setFixedCourtFee(s.fixedCourtFee || 0)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Không tải được buổi')
     } finally {
@@ -218,19 +222,20 @@ export default function SessionManagePage() {
     }
   }
 
-  // Handle shuttlecock update
-  const handleSaveShuttlecocks = async () => {
+  // Handle court fee and shuttlecock updates
+  const handleSaveCourtInfo = async () => {
     setBusy(true)
     try {
       const sId = shuttlecockId === 'null' ? null : Number(shuttlecockId)
       await sessionService.update(session.id, {
+        fixedCourtFee: Math.max(0, Number(fixedCourtFee) || 0),
         shuttlecockId: sId,
         shuttlecocksUsed: shuttlecocksUsed,
       })
-      toast.success('Đã cập nhật số lượng cầu lông sử dụng!')
+      toast.success('Đã cập nhật thông tin sân')
       await load()
     } catch (e) {
-      toast.error('Không thể cập nhật thông tin cầu lông')
+      toast.error('Không thể cập nhật thông tin sân')
     } finally {
       setBusy(false)
     }
@@ -330,7 +335,12 @@ export default function SessionManagePage() {
       </div>
 
       <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm space-y-4">
-        <h2 className="text-lg font-bold text-slate-900">{session.title}</h2>
+        <div className="flex flex-wrap items-center gap-2">
+          <h2 className="text-lg font-bold text-slate-900">{session.title}</h2>
+          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase text-slate-600">
+            {COURT_FEE_TYPE_LABELS[session.courtFeeType]}
+          </span>
+        </div>
         <p className="text-sm text-slate-500">
           {formatSessionDateTime(session.date, session.startTime, session.endTime)} ·{' '}
           {session.location}
@@ -351,17 +361,34 @@ export default function SessionManagePage() {
         
         {/* Cột 1: Cấu hình nhanh số lượng cầu & Chi phí phát sinh */}
         <div className="space-y-6 lg:col-span-1">
-          {/* Cầu lông */}
+          {/* Thông tin sân */}
           <Card className="border-slate-200 bg-white shadow-sm">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                <Sparkles className="h-4 w-4 text-slate-400" /> Cập nhật sử dụng cầu
+                <Sparkles className="h-4 w-4 text-slate-400" /> Thông tin sân
               </CardTitle>
               <CardDescription className="text-xs">
-                Nhập số cầu đã dùng để hệ thống phân bổ tiền cầu tức thì.
+                Cập nhật phí thuê sân và số cầu trước khi kết thúc buổi.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              <div className="space-y-1">
+                <Label htmlFor="court-fee" className="text-xs font-semibold text-slate-700">Phí thuê sân</Label>
+                <Input
+                  id="court-fee"
+                  type="number"
+                  min={0}
+                  step={1000}
+                  value={fixedCourtFee}
+                  onChange={(e) => setFixedCourtFee(Number(e.target.value))}
+                  className="h-9 border-slate-200"
+                />
+                {session.courtFeeType === 'custom' && (
+                  <p className="text-[11px] text-slate-400">
+                    Loại tùy chỉnh cho phép để 0 và sẽ chia đều khi kết thúc buổi.
+                  </p>
+                )}
+              </div>
               <div className="space-y-1">
                 <Label htmlFor="sc-select" className="text-xs font-semibold text-slate-700">Loại cầu sử dụng</Label>
                 <select
@@ -389,8 +416,8 @@ export default function SessionManagePage() {
                   className="h-9 border-slate-200"
                 />
               </div>
-              <Button onClick={handleSaveShuttlecocks} disabled={busy} className="w-full bg-slate-900 hover:bg-slate-800 text-white text-xs h-9">
-                Cập nhật tiền cầu
+              <Button onClick={handleSaveCourtInfo} disabled={busy} className="w-full bg-slate-900 hover:bg-slate-800 text-white text-xs h-9">
+                Cập nhật thông tin sân
               </Button>
             </CardContent>
           </Card>
@@ -463,12 +490,115 @@ export default function SessionManagePage() {
             <div className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700 border border-rose-100">{error}</div>
           )}
 
-          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+          <div className="space-y-3 md:hidden">
+            {registrations.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-slate-300 bg-white p-6 text-center text-sm text-slate-500">
+                Chưa có thành viên nào.
+              </div>
+            ) : (
+              registrations.map((r) => {
+                const u = userMap.get(r.userId)
+                const fullName = u?.name ?? '(đã xóa)'
+                const locked = r.userConfirmedPaid || r.adminConfirmedPaid
+
+                return (
+                  <div key={r.id} className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="font-semibold text-slate-900">{fullName}</div>
+                        <div className="text-xs text-slate-500">
+                          {u?.phone ?? u?.email ?? '—'}
+                        </div>
+                        <div className="mt-1.5 flex flex-wrap gap-1.5">
+                          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
+                            {genderLabel(u?.gender)}
+                          </span>
+                          <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+                            {skillLevelLabel(u?.skillLevel)}
+                          </span>
+                        </div>
+                      </div>
+                      {r.adminConfirmedPaid ? (
+                        <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase text-emerald-700">
+                          Đã duyệt
+                        </span>
+                      ) : r.userConfirmedPaid ? (
+                        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase text-amber-700">
+                          Chờ duyệt
+                        </span>
+                      ) : (
+                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold uppercase text-slate-500">
+                          Chưa đóng
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="mt-3 grid grid-cols-2 gap-3">
+                      <label className="space-y-1 text-xs font-semibold text-slate-600">
+                        Phải đóng
+                        <NumberInput
+                          value={r.amountDue}
+                          disabled={busy}
+                          onChange={(v) => updateReg(r, { amountDue: v })}
+                        />
+                      </label>
+                      <label className="space-y-1 text-xs font-semibold text-slate-600">
+                        Đã đóng
+                        <NumberInput
+                          value={r.amountPaid}
+                          disabled={busy}
+                          onChange={(v) => updateReg(r, { amountPaid: v })}
+                        />
+                      </label>
+                    </div>
+
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <label className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700">
+                        <input
+                          type="checkbox"
+                          checked={r.attended}
+                          disabled={busy}
+                          onChange={(e) => updateReg(r, { attended: e.target.checked })}
+                          className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900"
+                        />
+                        Điểm danh
+                      </label>
+                      {r.userConfirmedPaid && !r.adminConfirmedPaid && (
+                        <Button
+                          size="sm"
+                          onClick={() => handleAdminConfirmPayment(r)}
+                          disabled={busy}
+                          className="h-8 bg-emerald-600 px-3 text-xs font-bold uppercase text-white hover:bg-emerald-500"
+                        >
+                          Duyệt nhận
+                        </Button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setToRemove(r)}
+                        disabled={busy || locked}
+                        className="ml-auto rounded px-2 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {locked ? 'Khóa' : 'Xóa'}
+                      </button>
+                    </div>
+                    {r.manualAmountDue !== null && (
+                      <p className="mt-2 text-[11px] text-slate-400">Phí riêng đã được set cho thành viên này.</p>
+                    )}
+                  </div>
+                )
+              })
+            )}
+          </div>
+
+          <div className="hidden overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm md:block">
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-slate-200 text-sm">
                 <thead className="bg-slate-50 text-left text-xs font-bold tracking-wider text-slate-500 uppercase">
                   <tr>
                     <th className="px-4 py-3">Thành viên</th>
+                    <th className="px-4 py-3 text-center">Giới tính</th>
+                    <th className="px-4 py-3 text-center">Trình độ</th>
                     <th className="px-4 py-3 text-center">ĐD</th>
                     <th className="px-4 py-3 text-right">Phải đóng</th>
                     <th className="px-4 py-3 text-right">Đã đóng</th>
@@ -480,7 +610,7 @@ export default function SessionManagePage() {
                 <tbody className="divide-y divide-slate-100">
                   {registrations.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="px-4 py-10 text-center text-slate-500">
+                      <td colSpan={9} className="px-4 py-10 text-center text-slate-500">
                         Chưa có thành viên nào.
                       </td>
                     </tr>
@@ -488,15 +618,25 @@ export default function SessionManagePage() {
                     registrations.map((r) => {
                       const u = userMap.get(r.userId)
                       const fullName = u?.name ?? '(đã xóa)'
-                      const genderText = u?.gender === 'female' ? 'Nữ' : u?.gender === 'male' ? 'Nam' : 'Khác'
+                      const locked = r.userConfirmedPaid || r.adminConfirmedPaid
 
                       return (
                         <tr key={r.id} className="hover:bg-slate-50/40">
                           <td className="px-4 py-3">
                             <div className="font-semibold text-slate-900">{fullName}</div>
                             <div className="text-[10px] text-slate-400">
-                              {genderText} · {u?.phone ?? u?.email ?? '—'}
+                              {u?.phone ?? u?.email ?? '—'}
                             </div>
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold text-slate-600">
+                              {genderLabel(u?.gender)}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-semibold text-emerald-700">
+                              {skillLevelLabel(u?.skillLevel)}
+                            </span>
                           </td>
                           <td className="px-4 py-3 text-center">
                             <input
@@ -507,8 +647,17 @@ export default function SessionManagePage() {
                               className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900"
                             />
                           </td>
-                          <td className="px-4 py-3 text-right font-bold text-slate-950">
-                            {formatVND(r.amountDue)}
+                          <td className="px-4 py-3 text-right">
+                            <div className="flex flex-col items-end gap-1">
+                              <NumberInput
+                                value={r.amountDue}
+                                disabled={busy}
+                                onChange={(v) => updateReg(r, { amountDue: v })}
+                              />
+                              {r.manualAmountDue !== null && (
+                                <span className="text-[10px] font-semibold text-slate-400">Phí riêng</span>
+                              )}
+                            </div>
                           </td>
                           <td className="px-4 py-3 text-right">
                             <NumberInput
@@ -533,18 +682,13 @@ export default function SessionManagePage() {
                             )}
                           </td>
                           <td className="px-4 py-3 text-center">
-                            {!r.adminConfirmedPaid && (
+                            {r.userConfirmedPaid && !r.adminConfirmedPaid && (
                               <Button
                                 size="xs"
-                                variant={r.userConfirmedPaid ? 'default' : 'outline'}
+                                variant="default"
                                 onClick={() => handleAdminConfirmPayment(r)}
                                 disabled={busy}
-                                className={cn(
-                                  "text-[10px] h-7 px-2 font-bold uppercase",
-                                  r.userConfirmedPaid 
-                                    ? "bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs" 
-                                    : "border-slate-200 text-slate-700 bg-white"
-                                )}
+                                className="h-7 bg-emerald-600 px-2 text-[10px] font-bold uppercase text-white shadow-xs hover:bg-emerald-500"
                               >
                                 Duyệt nhận
                               </Button>
@@ -554,10 +698,10 @@ export default function SessionManagePage() {
                             <button
                               type="button"
                               onClick={() => setToRemove(r)}
-                              disabled={busy}
-                              className="text-xs font-semibold text-rose-600 hover:text-rose-700 p-1 hover:bg-rose-50 rounded"
+                              disabled={busy || locked}
+                              className="text-xs font-semibold text-rose-600 hover:text-rose-700 p-1 hover:bg-rose-50 rounded disabled:cursor-not-allowed disabled:opacity-50"
                             >
-                              Xóa
+                              {locked ? 'Khóa' : 'Xóa'}
                             </button>
                           </td>
                         </tr>
@@ -715,7 +859,7 @@ function NumberInput({
           onChange(n)
         }
       }}
-      className="w-24 rounded border border-slate-200 bg-white px-2 py-1 text-right text-sm focus:border-slate-900 focus:outline-none disabled:opacity-50 text-slate-900"
+      className="w-full rounded border border-slate-200 bg-white px-2 py-1 text-right text-sm text-slate-900 focus:border-slate-900 focus:outline-none disabled:opacity-50 sm:w-28"
     />
   )
 }

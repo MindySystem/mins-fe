@@ -12,6 +12,7 @@ interface RawRegistration {
   sessionId: number
   userId: number
   amountDue: number
+  manualAmountDue: number | null
   amountPaid: number
   attended: boolean
   userConfirmedPaid: boolean

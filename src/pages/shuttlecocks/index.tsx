@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/dialog'
 import { shuttlecockService, type Shuttlecock, type ShuttlecockPriceHistory } from '@/services/shuttlecock.service'
 
-export default function ShuttlecocksPage() {
+export function ShuttlecocksManager() {
   const [shuttlecocks, setShuttlecocks] = useState<Shuttlecock[]>([])
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
@@ -440,4 +440,8 @@ export default function ShuttlecocksPage() {
       </Dialog>
     </div>
   )
+}
+
+export default function ShuttlecocksPage() {
+  return <ShuttlecocksManager />
 }

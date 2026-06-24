@@ -2,8 +2,10 @@
 
 import type { User } from '@/store/useAppStore'
 import type { Shuttlecock } from '@/services/shuttlecock.service'
+import type { BadmintonCourtLocation } from './services/court-location.service'
 
 export type SessionStatus = 'open' | 'closed' | 'finished' | 'cancelled'
+export type CourtFeeType = 'fixed' | 'custom'
 
 export interface BadmintonSession {
   id: number
@@ -12,6 +14,9 @@ export interface BadmintonSession {
   startTime: string // HH:mm
   endTime: string // HH:mm
   location: string
+  courtId: number | null
+  type?: CourtFeeType
+  courtFeeType: CourtFeeType
   courtFee: number
   fixedCourtFee: number
   fixedFeeMale: number
@@ -29,6 +34,7 @@ export interface BadmintonSession {
   updatedAt: string
   registrationsCount?: number
   creator?: User | null
+  court?: BadmintonCourtLocation | null
   shuttlecock?: Shuttlecock | null
 }
 
@@ -38,8 +44,11 @@ export interface SessionFormData {
   startTime: string
   endTime: string
   location: string
+  courtId?: number | null
+  type: CourtFeeType
+  courtFeeType: CourtFeeType
   courtFee?: number
-  fixedCourtFee: number
+  fixedCourtFee?: number
   fixedFeeMale: number
   fixedFeeFemale: number
   shuttlecockId: number | null
@@ -54,6 +63,7 @@ export interface Registration {
   sessionId: number
   userId: number
   amountDue: number
+  manualAmountDue: number | null
   amountPaid: number
   attended: boolean
   userConfirmedPaid: boolean

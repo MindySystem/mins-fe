@@ -1,14 +1,18 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, Upload, Image as ImageIcon, Sparkles } from 'lucide-react'
+import { ArrowLeft, Upload, Image as ImageIcon, Sparkles, Navigation } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { sessionService } from '@/features/sessions/services/session.service'
+import {
+  courtLocationService,
+  type BadmintonCourtLocation,
+} from '@/features/sessions/services/court-location.service'
 import type { BadmintonSession, SessionFormData, SessionStatus } from '@/features/sessions/types'
-import { todayIso } from '@/features/sessions/utils/format'
+import { COURT_FEE_TYPE_LABELS, todayIso } from '@/features/sessions/utils/format'
 import { shuttlecockService, type Shuttlecock } from '@/services/shuttlecock.service'
 
 interface FormState {
@@ -17,7 +21,8 @@ interface FormState {
   startTime: string
   endTime: string
   location: string
-  fixedCourtFee: string
+  courtId: string
+  courtFeeType: 'fixed' | 'custom'
   fixedFeeMale: string
   fixedFeeFemale: string
   shuttlecockId: string
@@ -35,7 +40,8 @@ function makeInitial(existing: BadmintonSession | null): FormState {
       startTime: existing.startTime,
       endTime: existing.endTime,
       location: existing.location,
-      fixedCourtFee: String(existing.fixedCourtFee ?? 0),
+      courtId: existing.courtId ? String(existing.courtId) : 'manual',
+      courtFeeType: existing.courtFeeType ?? 'custom',
       fixedFeeMale: String(existing.fixedFeeMale ?? 0),
       fixedFeeFemale: String(existing.fixedFeeFemale ?? 0),
       shuttlecockId: existing.shuttlecockId ? String(existing.shuttlecockId) : 'null',
@@ -51,7 +57,8 @@ function makeInitial(existing: BadmintonSession | null): FormState {
     startTime: '19:00',
     endTime: '21:00',
     location: '',
-    fixedCourtFee: '0',
+    courtId: 'manual',
+    courtFeeType: 'custom',
     fixedFeeMale: '0',
     fixedFeeFemale: '0',
     shuttlecockId: 'null',
@@ -70,6 +77,7 @@ export default function SessionFormPage() {
   const [existing, setExisting] = useState<BadmintonSession | null>(null)
   const [loading, setLoading] = useState(isEdit)
   const [shuttlecocks, setShuttlecocks] = useState<Shuttlecock[]>([])
+  const [courts, setCourts] = useState<BadmintonCourtLocation[]>([])
   const [form, setForm] = useState<FormState>(() => makeInitial(null))
   const [errors, setErrors] = useState<Partial<Record<keyof FormState, string>>>({})
   const [touched, setTouched] = useState(false)
@@ -86,6 +94,10 @@ export default function SessionFormPage() {
       .getAll()
       .then((res) => setShuttlecocks(res.data))
       .catch((e) => console.error('Lỗi tải danh sách cầu lông', e))
+    courtLocationService
+      .list()
+      .then((data) => setCourts(data))
+      .catch((e) => console.error('Lỗi tải danh sách sân', e))
 
     if (!id) return
     let alive = true
@@ -131,19 +143,16 @@ export default function SessionFormPage() {
     }
     if (!form.location.trim()) next.location = 'Vui lòng nhập địa điểm'
 
-    const fixedCourt = Number(form.fixedCourtFee)
-    if (form.fixedCourtFee === '' || Number.isNaN(fixedCourt) || fixedCourt < 0) {
-      next.fixedCourtFee = 'Chi phí sân không hợp lệ'
-    }
+    if (form.courtFeeType === 'fixed') {
+      const maleFee = Number(form.fixedFeeMale)
+      if (form.fixedFeeMale === '' || Number.isNaN(maleFee) || maleFee < 0) {
+        next.fixedFeeMale = 'Chi phí nam không hợp lệ'
+      }
 
-    const maleFee = Number(form.fixedFeeMale)
-    if (form.fixedFeeMale === '' || Number.isNaN(maleFee) || maleFee < 0) {
-      next.fixedFeeMale = 'Chi phí nam không hợp lệ'
-    }
-
-    const femaleFee = Number(form.fixedFeeFemale)
-    if (form.fixedFeeFemale === '' || Number.isNaN(femaleFee) || femaleFee < 0) {
-      next.fixedFeeFemale = 'Chi phí nữ không hợp lệ'
+      const femaleFee = Number(form.fixedFeeFemale)
+      if (form.fixedFeeFemale === '' || Number.isNaN(femaleFee) || femaleFee < 0) {
+        next.fixedFeeFemale = 'Chi phí nữ không hợp lệ'
+      }
     }
 
     const sUsed = Number(form.shuttlecocksUsed)
@@ -172,6 +181,7 @@ export default function SessionFormPage() {
     if (!validate()) return
 
     const shuttlecockId = form.shuttlecockId === 'null' ? null : Number(form.shuttlecockId)
+    const courtId = form.courtId === 'manual' ? null : Number(form.courtId)
 
     const payload: SessionFormData = {
       title: form.title.trim(),
@@ -179,10 +189,12 @@ export default function SessionFormPage() {
       startTime: form.startTime,
       endTime: form.endTime,
       location: form.location.trim(),
+      courtId,
+      type: form.courtFeeType,
+      courtFeeType: form.courtFeeType,
       courtFee: 0, // Legacy support
-      fixedCourtFee: Number(form.fixedCourtFee),
-      fixedFeeMale: Number(form.fixedFeeMale),
-      fixedFeeFemale: Number(form.fixedFeeFemale),
+      fixedFeeMale: form.courtFeeType === 'fixed' ? Number(form.fixedFeeMale) : 0,
+      fixedFeeFemale: form.courtFeeType === 'fixed' ? Number(form.fixedFeeFemale) : 0,
       shuttlecockId,
       shuttlecocksUsed: Number(form.shuttlecocksUsed),
       maxParticipants: Number(form.maxParticipants),
@@ -243,6 +255,10 @@ export default function SessionFormPage() {
 
   // Selected shuttlecock price reference
   const selectedShuttlecock = shuttlecocks.find((s) => String(s.id) === form.shuttlecockId)
+  const selectedCourt = courts.find((court) => String(court.id) === form.courtId) || null
+  const directionsUrl = selectedCourt
+    ? selectedCourt.mapUrl || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(selectedCourt.address)}`
+    : null
 
   return (
     <div className="mx-auto max-w-3xl space-y-4">
@@ -337,6 +353,48 @@ export default function SessionFormPage() {
               </div>
 
               <div className="md:col-span-2 space-y-1">
+                <Label htmlFor="courtId" className="text-slate-700">
+                  Sân từ danh sách
+                </Label>
+                <select
+                  id="courtId"
+                  value={form.courtId}
+                  onChange={(e) => {
+                    const next = e.target.value
+                    const court = courts.find((item) => String(item.id) === next)
+                    setForm((f) => ({
+                      ...f,
+                      courtId: next,
+                      location: court ? court.address : f.location,
+                    }))
+                  }}
+                  className={fieldCls('courtId')}
+                >
+                  <option value="manual">Nhập địa điểm thủ công</option>
+                  {courts.map((court) => (
+                    <option key={court.id} value={court.id}>
+                      {court.name} — {court.address}
+                    </option>
+                  ))}
+                </select>
+                {selectedCourt && (
+                  <div className="mt-2 flex flex-col gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600 sm:flex-row sm:items-center sm:justify-between">
+                    <span className="min-w-0">{selectedCourt.address}</span>
+                    {directionsUrl && (
+                      <a
+                        href={directionsUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex shrink-0 items-center gap-1 font-semibold text-slate-800 hover:underline"
+                      >
+                        <Navigation className="h-3.5 w-3.5" /> Chỉ đường
+                      </a>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div className="md:col-span-2 space-y-1">
                 <Label htmlFor="location" className="text-slate-700">
                   Địa điểm <span className="text-rose-500">*</span>
                 </Label>
@@ -350,6 +408,21 @@ export default function SessionFormPage() {
                 {errors.location && touched && (
                   <p className="mt-1 text-xs text-rose-600">{errors.location}</p>
                 )}
+              </div>
+
+              <div className="space-y-1">
+                <Label htmlFor="courtFeeType" className="text-slate-700">
+                  Loại sân
+                </Label>
+                <select
+                  id="courtFeeType"
+                  value={form.courtFeeType}
+                  onChange={(e) => set('courtFeeType', e.target.value as 'fixed' | 'custom')}
+                  className={fieldCls('courtFeeType')}
+                >
+                  <option value="custom">{COURT_FEE_TYPE_LABELS.custom}</option>
+                  <option value="fixed">{COURT_FEE_TYPE_LABELS.fixed}</option>
+                </select>
               </div>
 
               <div className="space-y-1">
@@ -394,61 +467,52 @@ export default function SessionFormPage() {
           {/* Section 2: Quản lý chi phí */}
           <div className="space-y-4">
             <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
-              <ImageIcon className="h-4 w-4 text-slate-500" /> Quản lý chi phí cố định & cầu lông
+              <ImageIcon className="h-4 w-4 text-slate-500" /> Quản lý chi phí theo loại sân
             </h3>
 
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-              <div className="space-y-1">
-                <Label htmlFor="fixedCourtFee" className="text-slate-700">
-                  Tiền thuê sân cố định (VNĐ) <span className="text-rose-500">*</span>
-                </Label>
-                <Input
-                  id="fixedCourtFee"
-                  type="number"
-                  min={0}
-                  value={form.fixedCourtFee}
-                  onChange={(e) => set('fixedCourtFee', e.target.value)}
-                  className={fieldCls('fixedCourtFee')}
-                />
-                {errors.fixedCourtFee && touched && (
-                  <p className="mt-1 text-xs text-rose-600">{errors.fixedCourtFee}</p>
-                )}
-              </div>
-
-              <div className="space-y-1">
-                <Label htmlFor="fixedFeeMale" className="text-slate-700">
-                  Phí cố định Nam (VNĐ) <span className="text-rose-500">*</span>
-                </Label>
-                <Input
-                  id="fixedFeeMale"
-                  type="number"
-                  min={0}
-                  value={form.fixedFeeMale}
-                  onChange={(e) => set('fixedFeeMale', e.target.value)}
-                  className={fieldCls('fixedFeeMale')}
-                />
-                {errors.fixedFeeMale && touched && (
-                  <p className="mt-1 text-xs text-rose-600">{errors.fixedFeeMale}</p>
-                )}
-              </div>
-
-              <div className="space-y-1">
-                <Label htmlFor="fixedFeeFemale" className="text-slate-700">
-                  Phí cố định Nữ (VNĐ) <span className="text-rose-500">*</span>
-                </Label>
-                <Input
-                  id="fixedFeeFemale"
-                  type="number"
-                  min={0}
-                  value={form.fixedFeeFemale}
-                  onChange={(e) => set('fixedFeeFemale', e.target.value)}
-                  className={fieldCls('fixedFeeFemale')}
-                />
-                {errors.fixedFeeFemale && touched && (
-                  <p className="mt-1 text-xs text-rose-600">{errors.fixedFeeFemale}</p>
-                )}
-              </div>
+            <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-3 text-xs text-slate-600">
+              {form.courtFeeType === 'fixed'
+                ? 'Sân cố định sẽ dùng phí tham gia Nam/Nữ làm số tiền user cần đóng.'
+                : 'Sân tùy chỉnh sẽ chia đều tiền sân, cầu lông và chi phí phát sinh sau khi admin kết thúc buổi.'}
             </div>
+
+            {form.courtFeeType === 'fixed' && (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="space-y-1">
+                  <Label htmlFor="fixedFeeMale" className="text-slate-700">
+                    Phí Nam (VNĐ) <span className="text-rose-500">*</span>
+                  </Label>
+                  <Input
+                    id="fixedFeeMale"
+                    type="number"
+                    min={0}
+                    value={form.fixedFeeMale}
+                    onChange={(e) => set('fixedFeeMale', e.target.value)}
+                    className={fieldCls('fixedFeeMale')}
+                  />
+                  {errors.fixedFeeMale && touched && (
+                    <p className="mt-1 text-xs text-rose-600">{errors.fixedFeeMale}</p>
+                  )}
+                </div>
+
+                <div className="space-y-1">
+                  <Label htmlFor="fixedFeeFemale" className="text-slate-700">
+                    Phí Nữ (VNĐ) <span className="text-rose-500">*</span>
+                  </Label>
+                  <Input
+                    id="fixedFeeFemale"
+                    type="number"
+                    min={0}
+                    value={form.fixedFeeFemale}
+                    onChange={(e) => set('fixedFeeFemale', e.target.value)}
+                    className={fieldCls('fixedFeeFemale')}
+                  />
+                  {errors.fixedFeeFemale && touched && (
+                    <p className="mt-1 text-xs text-rose-600">{errors.fixedFeeFemale}</p>
+                  )}
+                </div>
+              </div>
+            )}
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-1">

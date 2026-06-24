@@ -1,6 +1,7 @@
 import api from '@/services/api'
 import type { User } from '@/store/useAppStore'
 import type { Shuttlecock } from '@/services/shuttlecock.service'
+import type { BadmintonCourtLocation } from './court-location.service'
 
 import type { BadmintonSession, SessionFormData, SessionStatus } from '../types'
 
@@ -11,6 +12,8 @@ interface RawSession {
   startTime: string
   endTime: string
   location: string
+  courtId: number | null
+  courtFeeType?: 'fixed' | 'custom'
   courtFee: number
   fixedCourtFee: number
   fixedFeeMale: number
@@ -28,6 +31,7 @@ interface RawSession {
   updatedAt: string
   registrationsCount?: number
   creator?: User | null
+  court?: BadmintonCourtLocation | null
   shuttlecock?: Shuttlecock | null
 }
 
@@ -50,7 +54,10 @@ function unwrap<T>(payload: T | { data: T }): T {
 function normalize(input: RawSession): BadmintonSession {
   return {
     ...input,
+    type: input.courtFeeType ?? 'custom',
+    courtFeeType: input.courtFeeType ?? 'custom',
     id: Number(input.id),
+    courtId: input.courtId === undefined || input.courtId === null ? null : Number(input.courtId),
     createdBy: Number(input.createdBy),
   }
 }

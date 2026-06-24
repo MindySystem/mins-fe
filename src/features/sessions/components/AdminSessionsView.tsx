@@ -10,6 +10,7 @@ import type { BadmintonSession, SessionStatus } from '@/features/sessions/types'
 import {
   formatSessionDateTime,
   formatVND,
+  COURT_FEE_TYPE_LABELS,
   todayIso,
 } from '@/features/sessions/utils/format'
 import { cn } from '@/lib/utils'
@@ -136,7 +137,8 @@ export function AdminSessionsView() {
                     <Users className="h-3.5 w-3.5" />
                     {s.registrationsCount ?? 0}/{s.maxParticipants}
                   </span>
-                  <span>💰 {formatVND(s.courtFee)}</span>
+                  <span>💰 {s.courtFeeType === 'fixed' ? `${formatVND(s.fixedFeeMale)} / ${formatVND(s.fixedFeeFemale)}` : formatVND(s.courtFee)}</span>
+                  <span>🏟️ {COURT_FEE_TYPE_LABELS[s.type ?? s.courtFeeType]}</span>
                   <span className="line-clamp-1">📍 {s.location.split(',')[0]}</span>
                 </div>
               </Link>
@@ -180,7 +182,9 @@ export function AdminSessionsView() {
                     <div className="line-clamp-1 max-w-[180px]">{s.location}</div>
                   </td>
                   <td className="px-4 py-3 text-right font-medium text-slate-900">
-                    {formatVND(s.courtFee)}
+                    {s.type === 'fixed' || s.courtFeeType === 'fixed'
+                      ? `${formatVND(s.fixedFeeMale)} / ${formatVND(s.fixedFeeFemale)}`
+                      : formatVND(s.courtFee)}
                   </td>
                   <td className="px-4 py-3 text-center text-slate-700">
                     {s.registrationsCount ?? 0}/{s.maxParticipants}

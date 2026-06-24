@@ -7,6 +7,7 @@ import { ArrowRight, Loader2, Lock, Mail, Phone, User } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useAppStore } from '@/store/useAppStore'
+import { SKILL_LEVEL_OPTIONS } from '@/utils/userMeta'
 
 import type { RegisterRequest } from '../services/auth.service'
 import { authService, registerSchema } from '../services/auth.service'
@@ -24,6 +25,10 @@ export function RegisterForm() {
     formState: { errors },
   } = useForm<RegisterRequest>({
     resolver: zodResolver(registerSchema),
+    defaultValues: {
+      gender: 'male',
+      skillLevel: 'beginner',
+    },
   })
 
   const onSubmit = async (data: RegisterRequest) => {
@@ -118,6 +123,33 @@ export function RegisterForm() {
           </div>
           {errors.gender && (
             <p className="mt-1 ml-1 text-xs text-red-400">{errors.gender.message}</p>
+          )}
+        </div>
+
+        <div className="space-y-1">
+          <label className="ml-1 text-sm font-medium text-slate-300">Trình độ tự đánh giá</label>
+          <div className="grid grid-cols-2 gap-3">
+            {SKILL_LEVEL_OPTIONS.map((option) => (
+              <label
+                key={option.value}
+                className={`flex cursor-pointer items-center justify-center rounded-xl border px-2 py-3 text-center text-sm font-medium transition-all ${
+                  watch('skillLevel') === option.value
+                    ? 'border-emerald-500 bg-emerald-500/10 text-emerald-400 font-bold shadow-[0_0_15px_rgba(16,185,129,0.15)]'
+                    : 'border-slate-700 bg-slate-800/30 text-slate-400 hover:bg-slate-800/50 hover:text-slate-300'
+                }`}
+              >
+                <input
+                  type="radio"
+                  value={option.value}
+                  {...register('skillLevel')}
+                  className="sr-only"
+                />
+                {option.label}
+              </label>
+            ))}
+          </div>
+          {errors.skillLevel && (
+            <p className="mt-1 ml-1 text-xs text-red-400">{errors.skillLevel.message}</p>
           )}
         </div>
 
