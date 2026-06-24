@@ -169,7 +169,7 @@ function UserMenu({ busy, onLogout }: { busy: boolean; onLogout: () => void }) {
           </Link>
         </DropdownMenuItem>
         <DropdownMenuItem className="cursor-pointer">
-          <Link to="/auth/profile" className="flex w-full items-center">
+          <Link to="/profile" className="flex w-full items-center">
             <UserIcon className="mr-2 h-4 w-4" />
             Hồ sơ
           </Link>

@@ -1,6 +1,7 @@
 // Domain types — khớp với BadmintonSessionResource / BadmintonRegistrationResource / UserResource
 
 import type { User } from '@/store/useAppStore'
+import type { Shuttlecock } from '@/services/shuttlecock.service'
 
 export type SessionStatus = 'open' | 'closed' | 'finished' | 'cancelled'
 
@@ -12,6 +13,14 @@ export interface BadmintonSession {
   endTime: string // HH:mm
   location: string
   courtFee: number
+  fixedCourtFee: number
+  fixedFeeMale: number
+  fixedFeeFemale: number
+  shuttlecockId: number | null
+  shuttlecockPricePerTube: number
+  shuttlecocksUsed: number
+  qrCodePath: string | null
+  qrCodeUrl: string | null
   maxParticipants: number
   status: SessionStatus
   description: string | null
@@ -20,6 +29,7 @@ export interface BadmintonSession {
   updatedAt: string
   registrationsCount?: number
   creator?: User | null
+  shuttlecock?: Shuttlecock | null
 }
 
 export interface SessionFormData {
@@ -28,7 +38,12 @@ export interface SessionFormData {
   startTime: string
   endTime: string
   location: string
-  courtFee: number
+  courtFee?: number
+  fixedCourtFee: number
+  fixedFeeMale: number
+  fixedFeeFemale: number
+  shuttlecockId: number | null
+  shuttlecocksUsed?: number
   maxParticipants: number
   status: SessionStatus
   description?: string
@@ -41,6 +56,8 @@ export interface Registration {
   amountDue: number
   amountPaid: number
   attended: boolean
+  userConfirmedPaid: boolean
+  adminConfirmedPaid: boolean
   note: string | null
   registeredAt: string
   updatedAt: string

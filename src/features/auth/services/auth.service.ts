@@ -19,6 +19,9 @@ export const registerSchema = z.object({
     .max(20)
     .optional()
     .or(z.literal('')),
+  gender: z.enum(['male', 'female', 'other'], {
+    message: 'Vui lòng chọn giới tính',
+  }),
   password: z.string().min(6, 'Mật khẩu cần ít nhất 6 ký tự'),
 })
 
@@ -78,6 +81,20 @@ export const authService = {
       await api.post('/auth/logout')
     } catch {
       // Bỏ qua lỗi — client vẫn phải xoá token
+    }
+  },
+
+  async updateProfile(data: {
+    name: string
+    phone?: string
+    gender: 'male' | 'female' | 'other'
+    password?: string
+  }): Promise<{ message: string; user: User }> {
+    try {
+      const res = (await api.put('/profile', data)) as { message: string; user: User }
+      return res
+    } catch (e) {
+      throw new Error(extractErrorMessage(e, 'Cập nhật hồ sơ thất bại'))
     }
   },
 }

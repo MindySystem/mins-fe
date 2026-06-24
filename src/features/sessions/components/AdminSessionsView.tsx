@@ -14,7 +14,6 @@ import {
 } from '@/features/sessions/utils/format'
 import { cn } from '@/lib/utils'
 import type { User } from '@/store/useAppStore'
-import { useAppStore } from '@/store/useAppStore'
 
 type Filter = 'all' | SessionStatus
 

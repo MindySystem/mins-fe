@@ -14,6 +14,8 @@ interface RawRegistration {
   amountDue: number
   amountPaid: number
   attended: boolean
+  userConfirmedPaid: boolean
+  adminConfirmedPaid: boolean
   note: string | null
   registeredAt: string
   updatedAt: string
@@ -31,7 +33,7 @@ function normalize(input: RawRegistration): Registration {
     sessionId: Number(input.sessionId),
     userId: Number(input.userId),
     // Preserve embedded user (khi server eager load 'user')
-    user: input.user ? normalizeUser(input.user) : input.user,
+    user: input.user,
   }
 }
 

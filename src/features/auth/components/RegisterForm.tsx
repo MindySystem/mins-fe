@@ -20,6 +20,7 @@ export function RegisterForm() {
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors },
   } = useForm<RegisterRequest>({
     resolver: zodResolver(registerSchema),
@@ -87,6 +88,37 @@ export function RegisterForm() {
             />
           </div>
           {errors.phone && <p className="mt-1 ml-1 text-xs text-red-400">{errors.phone.message}</p>}
+        </div>
+
+        <div className="space-y-1">
+          <label className="ml-1 text-sm font-medium text-slate-300">Giới tính</label>
+          <div className="grid grid-cols-3 gap-3">
+            {[
+              { value: 'male', label: 'Nam' },
+              { value: 'female', label: 'Nữ' },
+              { value: 'other', label: 'Khác' },
+            ].map((option) => (
+              <label
+                key={option.value}
+                className={`flex cursor-pointer items-center justify-center rounded-xl border py-3 text-sm font-medium transition-all ${
+                  watch('gender') === option.value
+                    ? 'border-emerald-500 bg-emerald-500/10 text-emerald-400 font-bold shadow-[0_0_15px_rgba(16,185,129,0.15)]'
+                    : 'border-slate-700 bg-slate-800/30 text-slate-400 hover:bg-slate-800/50 hover:text-slate-300'
+                }`}
+              >
+                <input
+                  type="radio"
+                  value={option.value}
+                  {...register('gender')}
+                  className="sr-only"
+                />
+                {option.label}
+              </label>
+            ))}
+          </div>
+          {errors.gender && (
+            <p className="mt-1 ml-1 text-xs text-red-400">{errors.gender.message}</p>
+          )}
         </div>
 
         <div className="space-y-1">

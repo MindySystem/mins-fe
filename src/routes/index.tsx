@@ -18,6 +18,7 @@ import SessionFormPage from '@/pages/sessions/form'
 import SessionsListPage from '@/pages/sessions/list'
 import SessionManagePage from '@/pages/sessions/manage'
 import MySessionsPage from '@/pages/sessions/my-sessions'
+import ShuttlecocksPage from '@/pages/shuttlecocks'
 import ShopPage from '@/pages/shop'
 import ShopHomePage from '@/pages/shop/home'
 import ProductDetailPage from '@/pages/shop/product-detail'
@@ -120,6 +121,14 @@ const router = createBrowserRouter([
       },
       { path: 'my-sessions', element: <MySessionsPage /> },
       { path: 'profile', element: <ProfilePage /> },
+      {
+        path: 'shuttlecocks',
+        element: (
+          <AdminRoute>
+            <ShuttlecocksPage />
+          </AdminRoute>
+        ),
+      },
     ],
   },
   {

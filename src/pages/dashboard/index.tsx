@@ -50,7 +50,7 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
-      <header className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/85 backdrop-blur">
+      <header className="z-50 border-b border-slate-200/80 bg-white/85 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 px-3 py-3 sm:px-6">
           {/* Left: hamburger (mobile) + logo + tenant */}
           <div className="flex items-center gap-2 sm:gap-3">
@@ -155,7 +155,7 @@ export default function Dashboard() {
                 placeholder="Tìm kiếm module…"
               />
             </div>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-3 gap-2">
               {quickStats.map((s) => (
                 <QuickStatCard key={s.label} value={s.value} label={s.label} />
               ))}
@@ -183,10 +183,10 @@ export default function Dashboard() {
               <div className="mt-6 flex flex-wrap gap-2 sm:mt-8 sm:gap-3">
                 <Button
                   size="lg"
-                  className="h-10 rounded-2xl bg-slate-900 px-5 text-sm hover:bg-slate-800 sm:h-11 sm:px-6 sm:text-base"
+                  className="h-10 rounded-2xl bg-slate-900 px-5 text-sm hover:bg-slate-800 sm:h-11 sm:px-6 sm:text-base bg-green-600"
                   onClick={() => navigate('/sessions')}
                 >
-                  <CalendarDays className="mr-1.5 h-4 w-4" />
+                  <CalendarDays className="mr-1.5 h-4 w-4 font-weight" />
                   Lịch cầu lông hôm nay
                 </Button>
                 <Button
@@ -258,26 +258,26 @@ export default function Dashboard() {
         <section className="mx-auto max-w-7xl space-y-10 px-3 py-6 sm:space-y-14 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
           {activeCategory === 'all'
             ? groupedSections.map((section) => {
-                const sectionModules = modules.filter((module) =>
-                  section.categories.includes(module.category),
-                )
-                return (
-                  <ModuleSection
-                    key={section.title}
-                    title={section.title}
-                    description={section.description}
-                    data={sectionModules}
-                  />
-                )
-              })
-            : [
+              const sectionModules = modules.filter((module) =>
+                section.categories.includes(module.category),
+              )
+              return (
                 <ModuleSection
-                  key="filtered"
-                  title="Danh mục theo bộ lọc"
-                  description="Các module phù hợp với nhóm chức năng bạn đang quan tâm."
-                  data={filteredModules}
-                />,
-              ]}
+                  key={section.title}
+                  title={section.title}
+                  description={section.description}
+                  data={sectionModules}
+                />
+              )
+            })
+            : [
+              <ModuleSection
+                key="filtered"
+                title="Danh mục theo bộ lọc"
+                description="Các module phù hợp với nhóm chức năng bạn đang quan tâm."
+                data={filteredModules}
+              />,
+            ]}
         </section>
       </main>
       <Footer />

@@ -1,5 +1,6 @@
 import api from '@/services/api'
 import type { User } from '@/store/useAppStore'
+import type { Shuttlecock } from '@/services/shuttlecock.service'
 
 import type { BadmintonSession, SessionFormData, SessionStatus } from '../types'
 
@@ -11,6 +12,14 @@ interface RawSession {
   endTime: string
   location: string
   courtFee: number
+  fixedCourtFee: number
+  fixedFeeMale: number
+  fixedFeeFemale: number
+  shuttlecockId: number | null
+  shuttlecockPricePerTube: number
+  shuttlecocksUsed: number
+  qrCodePath: string | null
+  qrCodeUrl: string | null
   maxParticipants: number
   status: SessionStatus
   description: string | null
@@ -19,6 +28,7 @@ interface RawSession {
   updatedAt: string
   registrationsCount?: number
   creator?: User | null
+  shuttlecock?: Shuttlecock | null
 }
 
 interface IndexResponse {
@@ -72,5 +82,39 @@ export const sessionService = {
 
   async setStatus(id: number | string, status: SessionStatus): Promise<BadmintonSession> {
     return this.update(id, { status })
+  },
+
+  async uploadQrCode(id: number | string, file: File): Promise<{ message: string; qrCodeUrl: string | null }> {
+    const formData = new FormData()
+    formData.append('qr_code', file)
+    return api.post(`/badminton/sessions/${id}/qr-code`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    }) as Promise<{ message: string; qrCodeUrl: string | null }>
+  },
+
+  async getExtraCosts(id: number | string): Promise<{ data: any[] }> {
+    return api.get(`/badminton/sessions/${id}/extra-costs`) as Promise<{ data: any[] }>
+  },
+
+  async addExtraCost(id: number | string, data: { name: string; amount: number; note?: string }): Promise<{ message: string; data: any }> {
+    return api.post(`/badminton/sessions/${id}/extra-costs`, data) as Promise<{ message: string; data: any }>
+  },
+
+  async updateExtraCost(costId: number | string, data: { name?: string; amount?: number; note?: string }): Promise<{ message: string; data: any }> {
+    return api.put(`/badminton/extra-costs/${costId}`, data) as Promise<{ message: string; data: any }>
+  },
+
+  async deleteExtraCost(costId: number | string): Promise<{ message: string }> {
+    return api.delete(`/badminton/extra-costs/${costId}`) as Promise<{ message: string }>
+  },
+
+  async userConfirmPayment(registrationId: number | string): Promise<{ message: string; data: any }> {
+    return api.post(`/badminton/registrations/${registrationId}/user-confirm`) as Promise<{ message: string; data: any }>
+  },
+
+  async adminConfirmPayment(registrationId: number | string): Promise<{ message: string; data: any }> {
+    return api.post(`/badminton/registrations/${registrationId}/admin-confirm`) as Promise<{ message: string; data: any }>
   },
 }
