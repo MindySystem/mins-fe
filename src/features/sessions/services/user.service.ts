@@ -1,7 +1,17 @@
 import api from '@/services/api'
 
-import type { User } from '@/store/useAppStore'
+import type { SkillLevel, User } from '@/store/useAppStore'
 import type { UserDetailResponse, UserStats } from '../types'
+
+export interface UserAdminFormData {
+  name: string
+  email: string
+  phone?: string
+  role: User['role']
+  gender: NonNullable<User['gender']>
+  skillLevel: SkillLevel
+  password?: string
+}
 
 export const userService = {
   /**
@@ -41,6 +51,16 @@ export const userService = {
     }
   },
 
+  async create(data: UserAdminFormData): Promise<User> {
+    const res = (await api.post('/users', data)) as { data: User }
+    return { ...res.data, id: Number(res.data.id) }
+  },
+
+  async update(id: number | string, data: Partial<UserAdminFormData>): Promise<User> {
+    const res = (await api.patch(`/users/${id}`, data)) as { data: User }
+    return { ...res.data, id: Number(res.data.id) }
+  },
+
   async updateRole(id: number | string, role: User['role']): Promise<User> {
     const res = (await api.patch(`/users/${id}/role`, { role })) as { data: User }
     return { ...res.data, id: Number(res.data.id) }
@@ -48,5 +68,9 @@ export const userService = {
 
   async resetPassword(id: number | string, password: string): Promise<void> {
     await api.patch(`/users/${id}/password`, { password })
+  },
+
+  async remove(id: number | string): Promise<void> {
+    await api.delete(`/users/${id}`)
   },
 }

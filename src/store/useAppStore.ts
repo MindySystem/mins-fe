@@ -13,6 +13,7 @@ export interface User {
   phone?: string
   gender?: 'male' | 'female' | 'other'
   skillLevel?: SkillLevel
+  isSeedAdmin?: boolean
   role: UserRole
   createdAt?: string
 }

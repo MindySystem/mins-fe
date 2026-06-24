@@ -10,17 +10,31 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useDebounce } from '@/hooks/useDebounce'
 import type { User } from '@/store/useAppStore'
 import { useAppStore } from '@/store/useAppStore'
-import { userService } from '@/features/sessions/services/user.service'
+import {
+  userService,
+  type UserAdminFormData,
+} from '@/features/sessions/services/user.service'
 import {
   courtLocationService,
   type BadmintonCourtLocation,
   type BadmintonCourtLocationForm,
 } from '@/features/sessions/services/court-location.service'
 import { ShuttlecocksManager } from '@/pages/shuttlecocks'
-import { genderLabel, skillLevelLabel } from '@/utils/userMeta'
+import { GENDER_LABELS, SKILL_LEVEL_OPTIONS, genderLabel, skillLevelLabel } from '@/utils/userMeta'
 
 const roleOptions: User['role'][] = ['admin', 'user', 'shop_manager', 'staff']
 type AdminTab = 'users' | 'courts' | 'shuttlecocks'
+type UserDialogMode = 'create' | 'edit'
+
+const emptyUserForm: UserAdminFormData = {
+  name: '',
+  email: '',
+  phone: '',
+  role: 'user',
+  gender: 'male',
+  skillLevel: 'beginner',
+  password: '',
+}
 
 export default function SessionsAdminPage() {
   const isAdmin = useAppStore((s) => s.user?.role === 'admin')
@@ -310,6 +324,10 @@ function UserManagementPanel() {
   const [busyId, setBusyId] = useState<number | null>(null)
   const [selected, setSelected] = useState<User | null>(null)
   const [newPassword, setNewPassword] = useState('')
+  const [userDialogOpen, setUserDialogOpen] = useState(false)
+  const [userDialogMode, setUserDialogMode] = useState<UserDialogMode>('create')
+  const [editingUser, setEditingUser] = useState<User | null>(null)
+  const [userForm, setUserForm] = useState<UserAdminFormData>(emptyUserForm)
   const debounced = useDebounce(query, 300)
 
   async function load() {
@@ -336,6 +354,7 @@ function UserManagementPanel() {
   )
 
   async function updateRole(user: User, nextRole: User['role']) {
+    if (user.isSeedAdmin) return
     setBusyId(user.id)
     try {
       const updated = await userService.updateRole(user.id, nextRole)
@@ -350,6 +369,10 @@ function UserManagementPanel() {
 
   async function resetPassword() {
     if (!selected) return
+    if (selected.isSeedAdmin) {
+      toast.error('Tài khoản quyền cao nhất không thể reset mật khẩu tại đây')
+      return
+    }
     if (newPassword.trim().length < 6) {
       toast.error('Mật khẩu mới phải có ít nhất 6 ký tự')
       return
@@ -362,6 +385,79 @@ function UserManagementPanel() {
       setNewPassword('')
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Đặt lại mật khẩu thất bại')
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  function openCreateUser() {
+    setEditingUser(null)
+    setUserDialogMode('create')
+    setUserForm(emptyUserForm)
+    setUserDialogOpen(true)
+  }
+
+  function openEditUser(user: User) {
+    if (user.isSeedAdmin) return
+    setEditingUser(user)
+    setUserDialogMode('edit')
+    setUserForm({
+      name: user.name,
+      email: user.email,
+      phone: user.phone || '',
+      role: user.role,
+      gender: user.gender || 'male',
+      skillLevel: user.skillLevel || 'beginner',
+      password: '',
+    })
+    setUserDialogOpen(true)
+  }
+
+  async function saveUser() {
+    if (!userForm.name.trim() || !userForm.email.trim()) {
+      toast.error('Vui lòng nhập tên và email')
+      return
+    }
+    if (userDialogMode === 'create' && (!userForm.password || userForm.password.length < 6)) {
+      toast.error('Mật khẩu phải có ít nhất 6 ký tự')
+      return
+    }
+
+    setBusyId(editingUser?.id ?? 0)
+    try {
+      const payload = {
+        ...userForm,
+        phone: userForm.phone || undefined,
+        password: userForm.password || undefined,
+      }
+      if (userDialogMode === 'create') {
+        const created = await userService.create(payload)
+        setUsers((arr) => [created, ...arr])
+        toast.success('Đã tạo người dùng')
+      } else if (editingUser) {
+        const updated = await userService.update(editingUser.id, payload)
+        setUsers((arr) => arr.map((u) => (u.id === updated.id ? updated : u)))
+        toast.success('Đã cập nhật người dùng')
+      }
+      setUserDialogOpen(false)
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Không thể lưu người dùng')
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  async function deleteUser(user: User) {
+    if (user.isSeedAdmin) return
+    if (!confirm(`Xóa người dùng "${user.name}"?`)) return
+
+    setBusyId(user.id)
+    try {
+      await userService.remove(user.id)
+      setUsers((arr) => arr.filter((u) => u.id !== user.id))
+      toast.success('Đã xóa người dùng')
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Không thể xóa người dùng')
     } finally {
       setBusyId(null)
     }
@@ -395,6 +491,9 @@ function UserManagementPanel() {
             </button>
           ))}
         </div>
+        <Button onClick={openCreateUser} className="h-9 gap-2 bg-slate-900 text-white hover:bg-slate-800">
+          <Plus className="h-4 w-4" /> Thêm user
+        </Button>
       </div>
 
       {loading ? (
@@ -410,6 +509,11 @@ function UserManagementPanel() {
                         <div className="font-semibold text-slate-900">{u.name}</div>
                         <div className="text-xs text-slate-500">{u.email}{u.phone ? ` · ${u.phone}` : ''}</div>
                         <div className="mt-1 flex flex-wrap gap-1.5">
+                          {u.isSeedAdmin && (
+                            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
+                              Quyền cao nhất
+                            </span>
+                          )}
                           <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
                             {genderLabel(u.gender)}
                           </span>
@@ -418,14 +522,30 @@ function UserManagementPanel() {
                           </span>
                         </div>
                       </div>
-                    <select value={u.role} onChange={(e) => updateRole(u, e.target.value as User['role'])} disabled={busyId === u.id} className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs">
-                      {roleOptions.map((r) => <option key={r} value={r}>{r}</option>)}
-                    </select>
+                    {u.isSeedAdmin ? (
+                      <span className="rounded-md bg-slate-100 px-2 py-1 text-xs font-semibold uppercase text-slate-600">
+                        {u.role}
+                      </span>
+                    ) : (
+                      <select value={u.role} onChange={(e) => updateRole(u, e.target.value as User['role'])} disabled={busyId === u.id} className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs">
+                        {roleOptions.map((r) => <option key={r} value={r}>{r}</option>)}
+                      </select>
+                    )}
                   </div>
-                  <div className="mt-3 flex items-center gap-2">
-                    <Button size="sm" variant="outline" className="h-8 gap-1.5" onClick={() => { setSelected(u); setNewPassword('') }}>
-                      <KeyRound className="h-3.5 w-3.5" /> Reset mật khẩu
-                    </Button>
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    {!u.isSeedAdmin && (
+                      <>
+                        <Button size="sm" variant="outline" className="h-8 gap-1.5" onClick={() => { setSelected(u); setNewPassword('') }}>
+                          <KeyRound className="h-3.5 w-3.5" /> Reset mật khẩu
+                        </Button>
+                        <Button size="sm" variant="outline" className="h-8 gap-1.5" onClick={() => openEditUser(u)}>
+                          <Edit2 className="h-3.5 w-3.5" /> Sửa
+                        </Button>
+                        <Button size="sm" variant="outline" className="h-8 border-rose-200 text-rose-600 hover:bg-rose-50" disabled={busyId === u.id} onClick={() => deleteUser(u)}>
+                          <Trash2 className="h-3.5 w-3.5" /> Xóa
+                        </Button>
+                      </>
+                    )}
                     <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-semibold uppercase text-slate-600">{u.role}</span>
                   </div>
                 </div>
@@ -450,6 +570,11 @@ function UserManagementPanel() {
                     <td className="px-4 py-3">
                       <div className="font-medium text-slate-900">{u.name}</div>
                       <div className="text-xs text-slate-500">ID #{u.id}</div>
+                      {u.isSeedAdmin && (
+                        <span className="mt-1 inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
+                          Quyền cao nhất
+                        </span>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex flex-wrap gap-1.5">
@@ -462,15 +587,31 @@ function UserManagementPanel() {
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      <select value={u.role} onChange={(e) => updateRole(u, e.target.value as User['role'])} disabled={busyId === u.id} className="h-9 rounded-md border border-slate-200 bg-white px-2 text-sm">
-                        {roleOptions.map((r) => <option key={r} value={r}>{r}</option>)}
-                      </select>
+                      {u.isSeedAdmin ? (
+                        <span className="rounded-md bg-slate-100 px-2 py-1 text-xs font-semibold uppercase text-slate-600">
+                          {u.role}
+                        </span>
+                      ) : (
+                        <select value={u.role} onChange={(e) => updateRole(u, e.target.value as User['role'])} disabled={busyId === u.id} className="h-9 rounded-md border border-slate-200 bg-white px-2 text-sm">
+                          {roleOptions.map((r) => <option key={r} value={r}>{r}</option>)}
+                        </select>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-slate-600">{u.email}{u.phone ? ` · ${u.phone}` : ''}</td>
                     <td className="px-4 py-3 text-right">
-                      <Button size="sm" variant="outline" className="gap-1.5" onClick={() => { setSelected(u); setNewPassword('') }}>
-                        <Edit2 className="h-3.5 w-3.5" /> Reset mật khẩu
-                      </Button>
+                      {!u.isSeedAdmin && (
+                        <div className="flex justify-end gap-1">
+                          <Button size="sm" variant="outline" className="gap-1.5" onClick={() => { setSelected(u); setNewPassword('') }}>
+                            <Edit2 className="h-3.5 w-3.5" /> Reset mật khẩu
+                          </Button>
+                          <Button size="sm" variant="outline" className="gap-1.5" onClick={() => openEditUser(u)}>
+                            <Edit2 className="h-3.5 w-3.5" /> Sửa
+                          </Button>
+                          <Button size="sm" variant="outline" className="border-rose-200 text-rose-600 hover:bg-rose-50" disabled={busyId === u.id} onClick={() => deleteUser(u)}>
+                            <Trash2 className="h-3.5 w-3.5" /> Xóa
+                          </Button>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -493,6 +634,57 @@ function UserManagementPanel() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setSelected(null)}>Đóng</Button>
             <Button onClick={resetPassword} disabled={busyId === selected?.id}>Lưu mật khẩu</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={userDialogOpen} onOpenChange={setUserDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{userDialogMode === 'create' ? 'Thêm người dùng' : 'Sửa người dùng'}</DialogTitle>
+            <DialogDescription>
+              {userDialogMode === 'create' ? 'Tạo tài khoản đăng nhập mới.' : editingUser?.name}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1">
+              <Label htmlFor="user-name">Họ tên</Label>
+              <Input id="user-name" value={userForm.name} onChange={(e) => setUserForm((f) => ({ ...f, name: e.target.value }))} />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="user-email">Email</Label>
+              <Input id="user-email" type="email" value={userForm.email} onChange={(e) => setUserForm((f) => ({ ...f, email: e.target.value }))} />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="user-phone">SĐT</Label>
+              <Input id="user-phone" value={userForm.phone || ''} onChange={(e) => setUserForm((f) => ({ ...f, phone: e.target.value }))} />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="user-password">Mật khẩu {userDialogMode === 'edit' && <span className="text-xs text-slate-400">(để trống nếu không đổi)</span>}</Label>
+              <Input id="user-password" type="password" value={userForm.password || ''} onChange={(e) => setUserForm((f) => ({ ...f, password: e.target.value }))} />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="user-role">Vai trò</Label>
+              <select id="user-role" value={userForm.role} onChange={(e) => setUserForm((f) => ({ ...f, role: e.target.value as User['role'] }))} className="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm">
+                {roleOptions.map((r) => <option key={r} value={r}>{r}</option>)}
+              </select>
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="user-gender">Giới tính</Label>
+              <select id="user-gender" value={userForm.gender} onChange={(e) => setUserForm((f) => ({ ...f, gender: e.target.value as NonNullable<User['gender']> }))} className="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm">
+                {Object.entries(GENDER_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+              </select>
+            </div>
+            <div className="space-y-1 sm:col-span-2">
+              <Label htmlFor="user-skill">Trình độ</Label>
+              <select id="user-skill" value={userForm.skillLevel} onChange={(e) => setUserForm((f) => ({ ...f, skillLevel: e.target.value as UserAdminFormData['skillLevel'] }))} className="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm">
+                {SKILL_LEVEL_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+              </select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setUserDialogOpen(false)}>Đóng</Button>
+            <Button onClick={saveUser} disabled={busyId !== null}>Lưu</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
