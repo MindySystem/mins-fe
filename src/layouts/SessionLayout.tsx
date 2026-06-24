@@ -13,6 +13,7 @@ import {
   Settings2,
 } from 'lucide-react'
 
+import { PageTitle } from '@/components/PageTitle'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -43,6 +44,7 @@ export default function SessionLayout() {
 
   return (
     <div className="min-h-screen bg-slate-50/50">
+      <PageTitle />
       <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/85 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-3 py-3 sm:px-6">
           {/* Left: Dashboard Logo + back (conditional) + module brand */}

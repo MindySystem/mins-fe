@@ -2,6 +2,7 @@ import { type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Home } from 'lucide-react'
 
+import { PageTitle } from '@/components/PageTitle'
 import { Button } from '@/components/ui/button'
 import { useAppStore } from '@/store/useAppStore'
 
@@ -18,6 +19,7 @@ export function ErrorLayout({ code, title, description, icon }: Props) {
 
   return (
     <div className="relative flex min-h-screen w-full items-center justify-center overflow-hidden bg-slate-50 font-sans">
+      <PageTitle title={title} />
       {/* Background Gradients */}
       <div
         className="absolute top-[-10%] left-[-10%] h-[40%] w-[40%] rounded-full opacity-20 blur-[120px]"

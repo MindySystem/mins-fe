@@ -1,8 +1,11 @@
 import { Link, Outlet } from 'react-router-dom'
 
+import { PageTitle } from '@/components/PageTitle'
+
 export function AuthLayout() {
   return (
     <div className="relative flex min-h-screen flex-col overflow-hidden bg-slate-950 lg:flex-row">
+      <PageTitle />
       <Link to="/" className="absolute z-999 m-8">
         <p className="mb-6 flex items-center text-5xl leading-tight font-black text-white">
           <span className="mr-2 inline-flex items-center justify-center rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-3 backdrop-blur-md">
