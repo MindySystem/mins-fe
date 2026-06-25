@@ -19,6 +19,7 @@ import SessionAdminPage from '@/pages/sessions/admin'
 import SessionsListPage from '@/pages/sessions/list'
 import SessionManagePage from '@/pages/sessions/manage'
 import MySessionsPage from '@/pages/sessions/my-sessions'
+import PortfolioPage from '@/pages/portfolio'
 import ShuttlecocksPage from '@/pages/shuttlecocks'
 import ShopPage from '@/pages/shop'
 import ShopHomePage from '@/pages/shop/home'
@@ -75,6 +76,10 @@ const router = createBrowserRouter([
       {
         path: 'service/*',
         element: <ServicePage />,
+      },
+      {
+        path: 'portfolio',
+        element: <PortfolioPage />,
       },
     ],
   },

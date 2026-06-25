@@ -37,7 +37,7 @@ function getPageTitle(pathname: string) {
   if (normalizedPath.startsWith('/court/')) return 'Quản lý sân'
   if (normalizedPath.startsWith('/service/')) return 'Dịch vụ'
 
-  return 'Không tìm thấy trang'
+  return 'OS'
 }
 
 type PageTitleProps = {

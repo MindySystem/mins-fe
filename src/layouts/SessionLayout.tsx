@@ -7,12 +7,12 @@ import {
   LogOut,
   Plus,
   ShieldCheck,
-  Sparkles,
   User as UserIcon,
   UserCircle2,
   Settings2,
 } from 'lucide-react'
 
+import { LogoMark } from '@/components/brand/LogoMark'
 import { PageTitle } from '@/components/PageTitle'
 import { Button } from '@/components/ui/button'
 import {
@@ -59,7 +59,7 @@ export default function SessionLayout() {
                 className="flex h-8 w-8 items-center justify-center rounded-xl text-white shadow-xs sm:h-9 sm:w-9"
                 style={{ backgroundColor: tenant.primaryColor }}
               >
-                <Sparkles className="h-4 w-4 sm:h-4.5 sm:w-4.5" />
+                <LogoMark className="h-5 w-5 sm:h-6 sm:w-6" title={tenant.name} />
               </div>
             </Link>
 

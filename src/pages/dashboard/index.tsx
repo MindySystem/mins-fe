@@ -6,11 +6,11 @@ import {
   Menu,
   Search,
   ShieldCheck,
-  Sparkles,
   User as UserIcon,
   X,
 } from 'lucide-react'
 
+import { LogoMark } from '@/components/brand/LogoMark'
 import Footer from '@/components/layout/footer'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -68,7 +68,7 @@ export default function Dashboard() {
                 className="flex h-9 w-9 items-center justify-center rounded-2xl text-white shadow-sm sm:h-11 sm:w-11"
                 style={{ backgroundColor: tenant.primaryColor }}
               >
-                <Sparkles className="h-4 w-4 sm:h-5 sm:w-5" />
+                <LogoMark className="h-6 w-6 sm:h-7 sm:w-7" title={tenant.name} />
               </div>
               <h1
                 className="hidden truncate text-lg font-bold sm:inline sm:text-3xl"
