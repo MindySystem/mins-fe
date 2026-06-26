@@ -1,0 +1,56 @@
+.my-moto {
+  min-height: 500px;
+    &-title {
+        background-image: url("../../assets/images/my-moto.jpg");
+        background-repeat: no-repeat;
+        background-size: cover;
+        background-position: center;
+        @apply w-full text-4xl text-center p-10 font-bold uppercase mt-20 mb-6 text-white;
+    }
+
+    .my-moto-list {
+      
+      &-item {
+        .item-left{
+          .item-img {
+  
+            img {
+              @apply w-full h-full object-cover;
+            }
+            @apply rounded overflow-hidden mr-2;
+          }
+
+          @apply w-3/5 items-center justify-center;
+        }
+        .item-right{
+          .title {
+            @apply text-3xl p-4 uppercase font-bold text-gray-500 border-b mb-4
+          }
+          .item-content {
+            div {
+              @apply my-2
+            }
+
+            .item-name {
+              @apply text-2xl text-gray-500 font-bold;
+            }
+            .item-time{
+              
+            }
+            .item-brand{
+              @apply uppercase
+            }
+            .item-type{
+              @apply capitalize
+            }
+            .btn-detail {
+              @apply p-4 w-1/2 justify-center mt-10 cursor-pointer border
+            }
+            @apply mx-4
+          }
+          @apply w-2/5 border-l;
+        }
+      @apply flex mb-10 p-4 justify-between items-start border-2 shadow-md rounded-xl;
+    }
+  }
+}

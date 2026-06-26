@@ -20,9 +20,9 @@ export const portfolioProfile = {
   github: 'tricoder1205',
   githubUrl: 'https://github.com/tricoder1205',
   cvUrl: '/files/tran-thai-minh-tri-cv.pdf',
-  avatarUrl: '/images/portfolio/tran-thai-minh-tri.png',
+  avatarUrl: '/images/portfolio/tran-thai-minh-tri.jpeg',
   summary:
-    'PHP/Laravel developer with 2+ years of experience building web applications, APIs, and user interfaces across Laravel, Vue.js, React.js, and Flutter projects.',
+    'PHP/Laravel developer with 4+ years of experience building web applications, APIs, and user interfaces across Laravel, Vue.js, React.js, and Flutter projects.',
 }
 
 export const contactLinks = [
@@ -164,7 +164,7 @@ export const featuredProjects = [
 ]
 
 export const stats = [
-  { value: '2+', label: 'Years in IT' },
+  { value: '4+', label: 'Years in IT' },
   { value: '4', label: 'Companies' },
   { value: '10+', label: 'Core skills' },
 ]

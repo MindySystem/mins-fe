@@ -10,6 +10,7 @@ export interface CourtFacility {
   distance: number // in km (fallback/hardcoded)
   lat?: number
   lng?: number
+  mapUrl?: string
   rating: number // 1-5
   imageUrl: string
   type: CourtType // Primary sport

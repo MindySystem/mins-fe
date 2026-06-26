@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ArrowUpDown, Loader2, LocateFixed, Search, SlidersHorizontal } from 'lucide-react'
+import { ArrowUpDown, Loader2, LocateFixed, Search } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
@@ -10,12 +10,13 @@ import {
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuSeparator,
+  DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 
 import type { CourtFacility } from '../types'
-import { calculateDistance, geocodeAddress } from '../utils/location'
+import { calculateDistance, geocodeAddress, getFacilityCoords } from '../utils/location'
 
 import { CourtCard } from './CourtCard'
 
@@ -40,7 +41,7 @@ export function CourtDiscovery({ facilities, onSelectFacility, loading }: Props)
     async function geocodeAll() {
       const coordsMap: Record<string, { lat: number; lng: number }> = {}
       for (const facility of facilities) {
-        const coords = await geocodeAddress(facility.address)
+        const coords = getFacilityCoords(facility) || (await geocodeAddress(facility.address))
         if (coords) {
           coordsMap[facility.id] = coords
         }
@@ -53,6 +54,11 @@ export function CourtDiscovery({ facilities, onSelectFacility, loading }: Props)
   }, [facilities])
 
   const handleGetLocation = () => {
+    if (!('geolocation' in navigator)) {
+      toast.error('Trình duyệt hiện không hỗ trợ định vị.')
+      return
+    }
+
     setFindingLocation(true)
     navigator.geolocation.getCurrentPosition(
       (position) => {
@@ -67,8 +73,13 @@ export function CourtDiscovery({ facilities, onSelectFacility, loading }: Props)
       (error) => {
         console.error('Geolocation error:', error)
         setFindingLocation(false)
-        toast.error('Không thể lấy vị trí. Vui lòng cho phép quyền truy cập vị trí.')
+        toast.error(
+          error.code === error.PERMISSION_DENIED
+            ? 'Bạn cần cho phép quyền truy cập vị trí để đo khoảng cách.'
+            : 'Không thể lấy vị trí hiện tại. Vui lòng thử lại.',
+        )
       },
+      { enableHighAccuracy: true, maximumAge: 60_000, timeout: 12_000 },
     )
   }
 
@@ -100,21 +111,24 @@ export function CourtDiscovery({ facilities, onSelectFacility, loading }: Props)
     const matchesSearch =
       facility.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       facility.address.toLowerCase().includes(searchQuery.toLowerCase())
-    const matchesDistance = maxDistance === 'all' || facility.distance <= (maxDistance as number)
+    const hasMeasuredDistance = !userCoords || facilityCoords[facility.id]
+    const matchesDistance =
+      maxDistance === 'all' ||
+      (hasMeasuredDistance && facility.distance <= (maxDistance as number))
     return matchesSearch && matchesDistance
   })
 
   return (
-    <div className="animate-in fade-in space-y-8 duration-500">
+    <div className="animate-in fade-in space-y-5 duration-500 sm:space-y-8">
       {/* Search and Filters */}
-      <div className="flex flex-col items-center gap-4 rounded-[2rem] border border-slate-100 bg-white p-6 shadow-xl shadow-slate-200/50 md:flex-row">
+      <div className="flex flex-col gap-3 rounded-2xl border border-slate-100 bg-white p-3 shadow-lg shadow-slate-200/40 sm:gap-4 sm:p-5 md:flex-row md:items-center">
         <div className="relative w-full flex-1">
-          <Search className="absolute top-3.5 left-4 h-5 w-5 text-slate-400" />
+          <Search className="absolute top-3 left-3.5 h-4.5 w-4.5 text-slate-400 sm:top-3.5 sm:left-4 sm:h-5 sm:w-5" />
           <Input
-            placeholder="Tìm theo tên sân hoặc khu vực (Cầu Giấy, Tây Hồ...)"
+            placeholder="Tìm tên sân hoặc khu vực..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="h-12 rounded-2xl border-transparent bg-slate-50 pl-12 text-base transition-all focus:border-emerald-500 focus:bg-white"
+            className="h-11 rounded-xl border-transparent bg-slate-50 pl-10 text-sm transition-all focus:border-emerald-500 focus:bg-white sm:h-12 sm:rounded-2xl sm:pl-12 sm:text-base"
           />
         </div>
 
@@ -122,7 +136,7 @@ export function CourtDiscovery({ facilities, onSelectFacility, loading }: Props)
           <Button
             variant={userCoords ? 'default' : 'outline'}
             className={cn(
-              'h-10 rounded-xl px-4 font-bold whitespace-nowrap transition-all',
+              'h-10 shrink-0 rounded-xl px-3 text-sm font-bold whitespace-nowrap transition-all sm:px-4',
               userCoords
                 ? 'bg-emerald-600 hover:bg-emerald-700'
                 : 'border-emerald-100 text-emerald-600 hover:bg-emerald-50',
@@ -131,38 +145,38 @@ export function CourtDiscovery({ facilities, onSelectFacility, loading }: Props)
             disabled={findingLocation}
           >
             {findingLocation ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              <Loader2 className="mr-1.5 h-4 w-4 animate-spin sm:mr-2" />
             ) : (
-              <LocateFixed className="mr-2 h-4 w-4" />
+              <LocateFixed className="mr-1.5 h-4 w-4 sm:mr-2" />
             )}
             Gần đây
           </Button>
 
-          <div className="mx-2 h-6 w-px bg-slate-100" />
+          <div className="mx-1 h-6 w-px shrink-0 bg-slate-100 sm:mx-2" />
 
-          <div className="flex items-center gap-1.5 px-1 text-sm font-bold whitespace-nowrap text-slate-500">
+          <div className="flex shrink-0 items-center gap-1.5 px-1 text-sm font-bold whitespace-nowrap text-slate-500">
             Bán kính:
           </div>
           {[2, 5, 10, 'all'].map((dist) => (
             <Button
               key={dist.toString()}
               variant={maxDistance === dist ? 'default' : 'outline'}
-              className="h-10 rounded-xl px-4 font-bold whitespace-nowrap transition-all"
+              className="h-10 shrink-0 rounded-xl px-3 text-sm font-bold whitespace-nowrap transition-all sm:px-4"
               onClick={() => setMaxDistance(dist as number | 'all')}
             >
               {dist === 'all' ? 'Tất cả' : `< ${dist}km`}
             </Button>
           ))}
 
-          <div className="mx-2 h-6 w-px bg-slate-100" />
+          <div className="mx-1 h-6 w-px shrink-0 bg-slate-100 sm:mx-2" />
 
           <DropdownMenu>
-            <Button variant="ghost" className="h-10 rounded-xl px-4 font-bold text-slate-600">
-              <ArrowUpDown className="mr-2 h-4 w-4" />
+            <DropdownMenuTrigger
+              className="inline-flex h-10 shrink-0 items-center justify-center rounded-xl px-3 text-sm font-bold whitespace-nowrap text-slate-600 transition-colors hover:bg-slate-100 sm:px-4"
+            >
+              <ArrowUpDown className="mr-1.5 h-4 w-4 sm:mr-2" />
               Sắp xếp
-            </Button>
-            {/* <DropdownMenuTrigger>
-            </DropdownMenuTrigger> */}
+            </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56 rounded-2xl p-2 shadow-xl">
               <DropdownMenuLabel className="px-3 py-2 text-xs font-bold tracking-wider text-slate-400 uppercase">
                 Sắp xếp theo
@@ -188,34 +202,32 @@ export function CourtDiscovery({ facilities, onSelectFacility, loading }: Props)
               </DropdownMenuRadioGroup>
             </DropdownMenuContent>
           </DropdownMenu>
-
-          <Button variant="ghost" size="icon" className="shrink-0 rounded-xl">
-            <SlidersHorizontal className="h-5 w-5 text-slate-400" />
-          </Button>
         </div>
       </div>
 
       {/* Results Grid */}
       {loading ? (
-        <div className="flex flex-col items-center justify-center gap-4 py-20">
-          <Loader2 className="h-12 w-12 animate-spin text-emerald-500" />
-          <p className="animate-pulse font-medium text-slate-400">
+        <div className="flex flex-col items-center justify-center gap-4 py-16 sm:py-20">
+          <Loader2 className="h-10 w-10 animate-spin text-emerald-500 sm:h-12 sm:w-12" />
+          <p className="animate-pulse text-center text-sm font-medium text-slate-400 sm:text-base">
             Đang định vị các sân gần bạn...
           </p>
         </div>
       ) : filteredFacilities.length > 0 ? (
-        <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-3">
           {filteredFacilities.map((facility) => (
             <CourtCard
               key={facility.id}
               facility={facility}
               onSelect={onSelectFacility}
               showDistance={!!userCoords}
+              userCoords={userCoords}
+              hasMeasuredDistance={!userCoords || !!facilityCoords[facility.id]}
             />
           ))}
         </div>
       ) : (
-        <div className="rounded-[2rem] border-2 border-dashed border-slate-200 bg-white py-20 text-center">
+        <div className="rounded-2xl border-2 border-dashed border-slate-200 bg-white px-5 py-16 text-center sm:py-20">
           <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-slate-50">
             <Search className="h-10 w-10 text-slate-300" />
           </div>

@@ -1,0 +1,101 @@
+.specifications__title{
+    font-size: 36px;
+    text-align: center;
+    padding: 20px 0;
+}
+
+.specifications {
+    display: flex;
+    flex-wrap: wrap;
+
+    .specifications__left{
+        flex: 0 0 33.333333%;
+        max-width: 33.333333%;
+
+        &-engine{
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-auto-rows: auto;
+        }
+
+        &-item{
+            padding-bottom: 40px;
+            font-size: 14px;
+            font-weight: 600;
+            width: 150px;
+
+            .item__point {
+                font-weight: 700;
+                font-size: 40px;
+                font-family: "Oswald",sans-serif;
+                
+                sup {
+                    font-size: 18px;
+                    color: #9c9c9c;
+                    top: -25px;
+                    left: 5px;
+                    font-weight: 600;
+                    position: relative;
+                    vertical-align: baseline;
+                }
+            }
+
+            .line {
+                width: 80px;
+                height: 2px;
+                background: #ff0000;
+                margin: 8px 0;
+            }
+        }
+    }
+
+    .specifications__right {
+        flex: 0 0 66.666667%;
+        max-width: 66.666667%;
+
+        &-item {
+            background-color: #f3f3f3;
+            padding: 12px 24px 0 24px;
+            margin-bottom: 16px;
+            border-radius: 8px;
+
+            .item__title{
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                border: 0;
+                outline: none;
+                background-color: transparent;
+                width: 100%;
+                font-size: 18px;
+                color: #ff0000;
+                font-family: "Oswald",sans-serif;
+                font-weight: 700;
+                padding-bottom: 16px;
+            }
+
+            .accordion-content{
+                display: block;
+
+                ul {
+                    padding-bottom: 8px;
+
+                    li{
+                        display: grid;
+                        grid-template-columns: .45fr 1fr;
+                        grid-auto-rows: auto;
+                        font-size: 14px;
+                        color: #53575b;
+                        padding: 8px 0;
+
+                        b {
+                            font-weight: bolder;
+                            color: #53575b;
+                            padding-right: 15px;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

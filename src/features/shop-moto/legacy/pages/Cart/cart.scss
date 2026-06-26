@@ -1,0 +1,95 @@
+.cart {
+    .container {
+        @apply pt-10;
+    }
+    .cart_title {
+        background-image: url("../../assets/images/banner_cart.jpg");
+        background-repeat: no-repeat;
+        background-position: center center;
+        background-size: cover;
+        background-position: top center;
+
+        @apply w-full text-5xl text-center p-10 font-bold uppercase my-10 text-white;
+    }
+
+    .body {
+        .list_moto,
+        .list_accessory {
+            .title {
+                @apply text-lg uppercase px-10 py-2 font-bold bg-gray-700 text-gray-100 rounded-t-lg;
+            }
+
+            .item {
+                .description {
+                    width: 450px;
+                    @apply text-xl font-bold ml-10 text-left;
+                }
+
+                .price {
+                    p {
+                        @apply text-xl font-bold;
+                    }
+                    span {
+                        @apply text-sky-800 flex;
+                    }
+                    @apply p-4 text-right w-56;
+                }
+
+                .quantity {
+                    .active {
+                        color: #000000;
+                        cursor: pointer;
+                    }
+                    .btn-quantity {
+                        @apply text-2xl;
+                    }
+                    p {
+                        @apply text-xl p-2;
+                    }
+                    @apply flex p-4 items-center;
+                }
+
+                .total_price {
+                    color: #ff0000;
+                    @apply p-4 text-2xl font-bold w-56;
+                }
+
+                .delete_product {
+                    color: #ff0000;
+                    padding: 8px;
+                    @apply text-xl w-10 cursor-pointer hover:text-red-800;
+                }
+                @apply flex items-center w-full justify-between;
+            }
+            @apply mb-10 shadow-md;
+        }
+        .total_bill {
+            span {
+                color: #ff0000;
+            }
+            @apply w-full text-right p-4 text-3xl font-bold;
+        }
+        .pay {
+            p {
+                @apply px-8 py-4 text-xl bg-red-500 text-white inline-block rounded-xl mr-10;
+            }
+            @apply w-full text-right;
+        }
+        @apply rounded-md  mb-10;
+    }
+    .cart-empty {
+        div {
+            margin: 0 auto;
+            width: 400px;
+            height: 400px;
+            img {
+                width: 100%;
+                height: 100%;
+                @apply animate-pulse;
+            }
+        }
+
+        @apply w-full text-center transition-all;
+    }
+    @apply pt-4;
+}

@@ -34,27 +34,30 @@ export default function CourtPage() {
   const selectedFacility = facilities.find((f) => f.id === selectedFacilityId)
 
   return (
-    <div className="flex min-h-screen flex-col bg-slate-50/50 p-6 md:p-10">
+    <div className="flex min-h-screen flex-col bg-slate-50/50 px-3 py-4 sm:px-6 sm:py-6 md:p-10">
       {/* Page Header */}
-      <div className="mb-8 flex flex-col justify-between gap-6 md:flex-row md:items-center">
+      <div className="mb-5 flex flex-col justify-between gap-4 sm:mb-8 md:flex-row md:items-center">
         <div>
           <div className="mb-3 flex items-center gap-2">
             <Button
               variant="ghost"
               size="sm"
-              className="rounded-xl text-slate-500 hover:bg-slate-200"
+              className="h-9 rounded-xl px-2 text-sm text-slate-500 hover:bg-slate-200 sm:px-3"
               onClick={() => (selectedFacilityId ? setSelectedFacilityId(null) : navigate('/'))}
             >
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              {selectedFacilityId ? 'Quay lại tìm kiếm' : 'Quay về Dashboard'}
+              <ArrowLeft className="mr-1.5 h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">
+                {selectedFacilityId ? 'Quay lại tìm kiếm' : 'Quay về Dashboard'}
+              </span>
+              <span className="sm:hidden">{selectedFacilityId ? 'Tìm sân' : 'Dashboard'}</span>
             </Button>
           </div>
-          <h1 className="text-4xl font-black tracking-tight text-slate-900 uppercase">
+          <h1 className="text-2xl leading-tight font-black tracking-tight text-slate-900 uppercase sm:text-4xl">
             {selectedFacilityId
               ? `Sân tại: ${selectedFacility?.name}`
               : `Khám phá sân ${tenant.name}`}
           </h1>
-          <p className="mt-2 max-w-2xl text-lg text-slate-500">
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500 sm:text-lg">
             {selectedFacilityId
               ? `Xem sơ đồ các sân lẻ và lịch trống tại ${selectedFacility?.address}`
               : `Tìm kiếm địa điểm chơi ${tenant.name} phù hợp nhất với vị trí và sở thích của bạn.`}

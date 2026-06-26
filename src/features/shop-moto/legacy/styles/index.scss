@@ -1,0 +1,25 @@
+@import "./profile.scss";
+@import "./myOrder.scss";
+@import "./sass/index.scss";
+@import "./pages/payment.scss";
+
+.flex {
+    display: flex;
+}
+
+.justify-center {
+    justify-content: center;
+}
+
+.justify-start {
+    justify-content: flex-start;
+}
+
+.justify-end {
+    justify-content: end;
+}
+
+.btn {
+    border: 0;
+    outline: 0;
+}

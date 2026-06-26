@@ -1,0 +1,98 @@
+* {
+    padding: 0;
+    margin: 0;
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+
+    user-select: none;
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    font-family: "SFProText", sans-serif;
+    -webkit-font-smoothing: antialiased;
+}
+
+ul {
+    list-style: none;
+}
+
+a {
+    text-decoration: none;
+    color: unset;
+}
+
+button,
+.btn {
+    border: none;
+    cursor: pointer;
+}
+
+.txt-center {
+    text-align: center;
+}
+
+.modal__product-config,
+.modal__product-check {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 2000;
+    background-color: rgba(0, 0, 0, 0.7);
+    font-family: Roboto, sans-serif;
+    overflow-x: hidden;
+    overflow-y: auto;
+    color: #464646;
+
+}
+.modal__wrapper {
+    margin: 100px auto;
+    max-width: 900px;
+    width: 100%;
+    background-color: #ffffff;
+    border-radius: 12px;
+
+}
+.modal__box {
+    width: 100%;
+    pointer-events: auto;
+    background-clip: padding-box;
+    border-radius: 4px;
+    font-size: 14px;
+    position: relative;
+}
+
+.grid {
+    display: grid;
+}
+
+::-webkit-scrollbar {
+    width: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+    border-radius: 8px;
+    background: rgb(68, 221, 255);
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #5085f6;
+}
+
+.container {
+    width: 100%;
+    max-width: 1300px;
+    padding: 0 50px;
+    margin: 0 auto;
+    
+    @apply w-full max-w-["1300px"] px-8 mx-auto px-2 md:px-4 lg:px-8;
+}

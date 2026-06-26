@@ -1,0 +1,17 @@
+.my-moto {
+  min-height: 500px;
+  
+  &-title {
+      background-image: url("../../assets/images/maintenance.jpg");
+      background-repeat: no-repeat;
+      background-size: cover;
+      background-position: center;
+      @apply w-full text-4xl text-center p-10 font-bold uppercase mt-20 mb-6 text-white;
+  }
+  .btn-time {
+    @apply w-16 p-2 mr-2 mb-4 cursor-pointer rounded-md text-lg text-center font-bold border border-sky-600 hover:bg-sky-300
+  }
+  .content__title {
+    @apply text-2xl leading-6 text-gray-900 font-bold
+  }
+}

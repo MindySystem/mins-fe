@@ -1,0 +1,100 @@
+[
+    {
+        "id": "1",
+        "id_product": "product1",
+        "list_comment": [
+            {
+                "id": "text1",
+                "user": {
+                    "name": "Nguyễn Văn A",
+                    "avatar": "./logo/logo_moto.jpg"
+                },
+                "noi_dung": "Binh luận sản phẩm",
+                "dateTime": "2022/08/11",
+                "rep_comment": [
+                    {
+                        "id": "1",
+                        "user": {
+                            "name": "Nguyễn Văn B",
+                            "avatar": "./logo/logo_moto.jpg"
+                        },
+                        "noi_dung": "Binh luận sản phẩm",
+                        "dateTime": "2022/08/11"
+                    },
+                    {
+                        "id": "2",
+                        "user": {
+                            "name": "Nguyễn Văn A",
+                            "avatar": "./logo/logo_moto.jpg"
+                        },
+                        "noi_dung": "Binh luận sản phẩm",
+                        "dateTime": "2022/08/11"
+                    }
+                ]
+            },
+            {
+                "id": "text2",
+                "user": {
+                    "name": "Nguyễn Văn C",
+                    "avatar": "./logo/logo_moto.jpg"
+                },
+                "noi_dung": "Binh luận sản phẩm",
+                "dateTime": "2022/08/11",
+                "rep_comment": []
+            },
+            {
+                "id": "text3",
+                "user": {
+                    "name": "Nguyễn Văn D",
+                    "avatar": "./logo/logo_moto.jpg"
+                },
+                "noi_dung": "Binh luận sản phẩm",
+                "dateTime": "2022/08/11",
+                "rep_comment": [
+                    {
+                        "id": "1",
+                        "user": {
+                            "name": "Nguyễn Văn E",
+                            "avatar": "./logo/logo_moto.jpg"
+                        },
+                        "noi_dung": "Binh luận sản phẩm",
+                        "dateTime": "2022/08/11"
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "id": "comentproduct2",
+        "id_product": "product2",
+        "list_comment": [
+            {
+                "id": "1",
+                "user": {
+                    "name": "Nguyễn Văn A",
+                    "avatar": "./logo/logo_moto.jpg"
+                },
+                "noi_dung": "Binh luận sản phẩm",
+                "dateTime": "2022/08/11"
+            },
+            {
+                "id": "2",
+                "user": {
+                    "name": "Nguyễn Văn A",
+                    "avatar": "./logo/logo_moto.jpg"
+                },
+                "noi_dung": "Binh luận sản phẩm",
+                "dateTime": "2022/08/11"
+            },
+            {
+                "id": "3",
+                "user": {
+                    "name": "Nguyễn Văn A",
+                    "avatar": "./logo/logo_moto.jpg"
+                },
+                "noi_dung": "Binh luận sản phẩm",
+                "dateTime": "2022/08/11"
+            }
+        ]
+    }
+]

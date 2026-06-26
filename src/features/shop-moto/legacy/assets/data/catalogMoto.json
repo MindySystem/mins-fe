@@ -1,0 +1,95 @@
+{
+    "brand": {
+        "title": "Thương hiệu",
+        "list":[
+            { "filter": "brand", "key": "yamaha", "name":"Yamaha" },
+            { "filter": "brand", "key": "ducati", "name":"Ducati" },
+            { "filter": "brand", "key": "kawasaki", "name":"Kawasaki" },
+            { "filter": "brand", "key": "bmw", "name":"BMW" },
+            { "filter": "brand", "key": "honda", "name":"Honda" }
+        ]
+    },
+    "type": {
+        "title": "Dòng xe",
+        "list":[
+            { "filter": "types", "key": "hyper-naked", "name":"Hyper Naked" },
+            { "filter": "types", "key": "supper-sport", "name":"Supper Sport" },
+            { "filter": "types", "key": "touring", "name":"Touring" },
+            { "filter": "types", "key": "sport-touring", "name":"Sport Touring" },
+            { "filter": "types", "key": "cruiser", "name":"Cruiser" },
+            { "filter": "types", "key": "adventure", "name":"Adventure" }
+        ]
+    },
+    "segment": {
+        "title": "Phân khúc",
+        "list":[
+            { "filter": "power", "key": "1001", "name":"Trên 1000cc"},
+            { "filter": "power", "key": "1000", "name":"1000cc"},
+            { "filter": "power", "key": "900", "name":"900cc"},
+            { "filter": "power", "key": "800", "name":"800cc"},
+            { "filter": "power", "key": "700", "name":"700cc"},
+            { "filter": "power", "key": "600", "name":"600cc"},
+            { "filter": "power", "key": "500", "name":"500cc"},
+            { "filter": "power", "key": "400", "name":"400cc"},
+            { "filter": "power", "key": "300", "name":"300cc"},
+            { "filter": "power", "key": "250", "name":"250cc"},
+            { "filter": "power", "key": "150", "name":"150cc"}
+        ]
+    },
+    "priceSort": [
+        {
+          "value": 1,
+          "label": "Không có",
+          "min": 0,
+          "max": 9000000000
+        },
+        {
+          "value": 2,
+          "label": "10 triệu - 100 Triệu",
+          "min": 10000000,
+          "max": 100000000
+        },
+        {
+          "value": 3,
+          "label": "100 triệu - 200 Triệu",
+          "min": 100000000,
+          "max": 200000000
+        },
+        {
+          "value": 4,
+          "label": "200 triệu - 300 Triệu",
+          "min": 200000000,
+          "max": 300000000
+        },
+        {
+          "value": 5,
+          "label": "300 triệu - 400 Triệu",
+          "min": 300000000,
+          "max": 400000000
+        },
+        {
+          "value": 6,
+          "label": "500 triệu - 600 Triệu",
+          "min": 500000000,
+          "max": 600000000
+        },
+        {
+          "value": 7,
+          "label": "700 triệu - 800 Triệu",
+          "min": 700000000,
+          "max": 800000000
+        },
+        {
+          "value": 8,
+          "label": "800 triệu - 900 Triệu",
+          "min": 800000000,
+          "max": 900000000
+        },
+        {
+          "value": 9,
+          "label": "Trên 900 Triệu",
+          "min": 900000000,
+          "max": 9000000000
+        }
+      ] 
+}

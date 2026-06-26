@@ -1,0 +1,101 @@
+{
+    "brand": {
+        "title": "Thương hiệu",
+        "list":[
+            { "filter": "brand", "key":"vesrah", "name":"Vesrah" },
+            { "filter": "brand", "key":"elig", "name":"Elig" },
+            { "filter": "brand", "key":"spirit-beast", "name":"Spirit Beast" },
+            { "filter": "brand", "key":"sp-connect", "name":"SP Connect" },
+            { "filter": "brand", "key":"arrow", "name":"Arrow" },
+            { "filter": "brand", "key":"tun", "name":"TUN" },
+            { "filter": "brand", "key":"loboo", "name":"LOBOO" },
+            { "filter": "brand", "key":"hyperion", "name":"Hyperion" },
+            { "filter": "brand", "key":"hel", "name":"Hel" },
+            { "filter": "brand", "key":"mupo", "name":"Mupo" },
+            { "filter": "brand", "key":"k&n", "name":"K&N" },
+            { "filter": "brand", "key":"driven", "name":"DRIVEN" },
+            { "filter": "brand", "key":"racing-boy", "name":"Racing Boy" },
+            { "filter": "brand", "key":"motogadget", "name":"Motogadget" },
+            { "filter": "brand", "key":"galespeed", "name":"Galespeed" },
+            { "filter": "brand", "key":"bonamici", "name":"Bonamici" },
+            { "filter": "brand", "key":"rk", "name":"RK" },
+            { "filter": "brand", "key":"brembo", "name":"Brembo" }
+        ]
+    },
+    "type": {
+        "title": "Loại sản phẩm",
+        "list":[
+            { "filter": "type", "key":"xi-nhan", "name":"Xi-nhan" },
+            { "filter": "type", "key":"nhong-sen-dia", "name":"Nhông sên dĩa" },
+            { "filter": "type", "key":"ghi-dong-tay-lai", "name":"Ghi đông tay lái" },
+            { "filter": "type", "key":"thung-nhom", "name":"THÙNG NHÔM" },
+            { "filter": "type", "key":"kinh-chieu-hau", "name":"Kính chiếu hậu" },
+            { "filter": "type", "key":"loc-gio", "name":"Lọc gió" },
+            { "filter": "type", "key":"sac-binh-acc-quy", "name":"Sạc bình ắc quy" },
+            { "filter": "type", "key":"chong-trom", "name":"Chống trộm" },
+            { "filter": "type", "key":"heo-thang", "name":"Heo thắng" },
+            { "filter": "type", "key":"po", "name":"Pô" },
+            { "filter": "type", "key":"den-tro-sang", "name":"Đèn trợ sáng" },
+            { "filter": "type", "key":"pat-bien-so", "name":"Pat biển số" },
+            { "filter": "type", "key":"cum-con-cum-thang", "name":"Cùm côn Cùm thắng" },
+            { "filter": "type", "key":"tro-luc", "name":"Trợ lực" },
+            { "filter": "type", "key":"day-dau", "name":"Dây dầu" },  
+            { "filter": "type", "key":"phuoc", "name":"Phuộc" },
+            { "filter": "type", "key":"lop-xe", "name":"Lốp xe" },
+            { "filter": "type", "key":"bao-ve-ket-nuoc", "name":"Bảo vệ két nước" },
+            { "filter": "type", "key":"gia-do", "name":"Giá đỡ điện thoại" },
+            { "filter": "type", "key":"bo-thang", "name":"bố thắng" },
+            { "filter": "type", "key":"chong-do", "name":"chống đổ" },
+            { "filter": "type", "key":"gu", "name":"gu" },
+            { "filter": "type", "key":"bao-ve-may", "name":"Bảo vệ máy" },
+            { "filter": "type", "key":"loc-nhot", "name":"Lọc nhớt" },
+            { "filter": "type", "key":"baga", "name":"Baga" },
+            { "filter": "type", "key":"led", "name":"Led" },
+            { "filter": "type", "key":"phu-gia", "name":"Phụ gia" }
+        ]
+    },
+    "priceSort": [
+        {
+          "value": 1,
+          "label": "Không có",
+          "min": 0,
+          "max": 900000000
+        },
+        {
+          "value": 2,
+          "label": "0 - 1 Triệu",
+          "min": 0,
+          "max": 1000000
+        },
+        {
+          "value": 3,
+          "label": "1 triệu - 3 Triệu",
+          "min": 1000000,
+          "max": 3000000
+        },
+        {
+          "value": 4,
+          "label": "3 triệu - 5 Triệu",
+          "min": 3000000,
+          "max": 5000000
+        },
+        {
+          "value": 5,
+          "label": "5 triệu - 10 Triệu",
+          "min": 5000000,
+          "max": 10000000
+        },
+        {
+          "value": 6,
+          "label": "10 triệu - 20 Triệu",
+          "min": 10000000,
+          "max": 20000000
+        },
+        {
+          "value": 7,
+          "label": "Trên 20 Triệu",
+          "min": 20000000,
+          "max": 9000000000
+        }
+      ] 
+}

@@ -1,0 +1,28 @@
+[
+    {
+        "id": "",
+        "id_product": "product1",
+        "list_rating": [
+            {
+                "id": "star1",
+                "noi_dung": "Đánh giá sản phẩm",
+                "point": 4,
+                "user": {
+                    "avatar": "",
+                    "name": "Nguyễn Văn Đánh Giá"
+                },
+                "dateTime": "2022/08/11"
+            },
+            {
+                "id": "star1",
+                "noi_dung": "Đánh giá sản phẩm 2",
+                "point": 4.6,
+                "user": {
+                    "avatar": "",
+                    "name": "Nguyễn Văn Đánh Giá 2"
+                },
+                "dateTime": "2022/08/11"
+            }
+        ]
+    }
+]

@@ -38,14 +38,10 @@ export function BookingModal({
   
   // Initialize state from props
   const [startTime, setStartTime] = useState(
-    overrideRange 
-      ? `${overrideRange.startHour.toString().padStart(2, '0')}:00` 
-      : '08:00'
+    overrideRange ? `${overrideRange.startHour.toString().padStart(2, '0')}:00` : '08:00',
   )
   const [endTime, setEndTime] = useState(
-    overrideRange 
-      ? `${overrideRange.endHour.toString().padStart(2, '0')}:00` 
-      : '09:00'
+    overrideRange ? `${overrideRange.endHour.toString().padStart(2, '0')}:00` : '09:00',
   )
 
   const handleBooking = () => {
@@ -66,74 +62,74 @@ export function BookingModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[425px] rounded-3xl">
+      <DialogContent className="max-h-[calc(100dvh-1.5rem)] overflow-y-auto rounded-2xl p-4 sm:max-w-[425px] sm:rounded-3xl sm:p-6">
         <DialogHeader>
-          <DialogTitle className="text-2xl font-bold flex items-center gap-2">
-            🚀 Đặt lịch mới
+          <DialogTitle className="flex items-center gap-2 pr-8 text-xl font-bold sm:text-2xl">
+            Đặt lịch mới
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="text-sm leading-6">
             Tạo lượt đặt sân mới cho {selectedCourt?.name || 'sân chưa chọn'} ngày{' '}
             {format(selectedDate, 'dd/MM/yyyy')}.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid gap-6 py-4">
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="customerName" className="text-right font-semibold">
+        <div className="grid gap-4 py-2 sm:gap-6 sm:py-4">
+          <div className="grid gap-2 sm:grid-cols-4 sm:items-center sm:gap-4">
+            <Label htmlFor="customerName" className="font-semibold sm:text-right">
               Tên khách
             </Label>
-            <div className="col-span-3 relative">
-              <User className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+            <div className="relative sm:col-span-3">
+              <User className="absolute top-3 left-3 h-4 w-4 text-slate-400" />
               <Input
                 id="customerName"
                 placeholder="Nguyễn Văn A"
-                className="pl-9 rounded-xl"
+                className="h-11 rounded-xl pl-9"
               />
             </div>
           </div>
 
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="phone" className="text-right font-semibold">
+          <div className="grid gap-2 sm:grid-cols-4 sm:items-center sm:gap-4">
+            <Label htmlFor="phone" className="font-semibold sm:text-right">
               SĐT
             </Label>
-            <div className="col-span-3 relative">
-              <Phone className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+            <div className="relative sm:col-span-3">
+              <Phone className="absolute top-3 left-3 h-4 w-4 text-slate-400" />
               <Input
                 id="phone"
                 placeholder="090..."
-                className="pl-9 rounded-xl"
+                className="h-11 rounded-xl pl-9"
               />
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid gap-3 sm:grid-cols-2 sm:gap-4">
             <div className="flex flex-col gap-2">
-              <Label className="font-semibold px-1">Giờ bắt đầu</Label>
+              <Label className="px-1 font-semibold">Giờ bắt đầu</Label>
               <div className="relative">
-                <Clock className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+                <Clock className="absolute top-3 left-3 h-4 w-4 text-slate-400" />
                 <Input
                   type="time"
                   value={startTime}
                   onChange={(e) => setStartTime(e.target.value)}
-                  className="pl-9 rounded-xl"
+                  className="h-11 rounded-xl pl-9"
                 />
               </div>
             </div>
             <div className="flex flex-col gap-2">
-              <Label className="font-semibold px-1">Giờ kết thúc</Label>
+              <Label className="px-1 font-semibold">Giờ kết thúc</Label>
               <div className="relative">
-                <Clock className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+                <Clock className="absolute top-3 left-3 h-4 w-4 text-slate-400" />
                 <Input
                   type="time"
                   value={endTime}
                   onChange={(e) => setEndTime(e.target.value)}
-                  className="pl-9 rounded-xl"
+                  className="h-11 rounded-xl pl-9"
                 />
               </div>
             </div>
           </div>
 
-          <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-2">
+          <div className="space-y-2 rounded-2xl border border-slate-100 bg-slate-50 p-4">
             <div className="flex justify-between text-sm">
               <span className="text-slate-500">Đơn giá:</span>
               <span className="font-bold">
@@ -141,7 +137,7 @@ export function BookingModal({
               </span>
             </div>
             <div
-              className="flex justify-between text-lg font-extrabold"
+              className="flex items-start justify-between gap-4 text-base font-extrabold sm:text-lg"
               style={{ color: tenant.primaryColor }}
             >
               <span>Tổng cộng (tạm tính):</span>
@@ -152,12 +148,12 @@ export function BookingModal({
           </div>
         </div>
 
-        <DialogFooter>
-          <Button variant="ghost" onClick={onClose} className="rounded-xl">
+        <DialogFooter className="gap-2 sm:gap-2">
+          <Button variant="ghost" onClick={onClose} className="h-11 rounded-xl">
             Hủy
           </Button>
           <Button
-            className="rounded-xl px-8 shadow-lg transition-transform hover:scale-105 active:scale-95"
+            className="h-11 rounded-xl px-8 shadow-lg transition-transform hover:scale-105 active:scale-95"
             style={{ backgroundColor: tenant.primaryColor }}
             onClick={handleBooking}
             disabled={loading}

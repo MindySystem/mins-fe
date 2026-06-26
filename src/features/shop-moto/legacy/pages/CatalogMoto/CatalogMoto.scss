@@ -1,0 +1,173 @@
+.catalog__moto {
+    margin-top: 30px;
+    padding: 40px 10px;
+
+    .box-filter {
+        padding: 20px;
+        width: 100%;
+
+        background-color: rgb(255, 255, 255);
+        border-radius: 8px;
+        box-shadow: 0 0 6px rgba(0, 0, 0, 0.6);
+
+        .title {
+            display: flex;
+            margin-bottom: 20px;
+
+            h3 {
+                height: fit-content;
+                width: 100px;
+                display: inline-block;
+                padding-bottom: 4px;
+                border-bottom: 1px solid #000;
+                margin-right: 30px;
+                font-weight: 600;
+            }
+
+            .listFilter {
+                flex-wrap: wrap;
+                flex: 1;
+
+                .filter-item {
+                    @apply border p-1 rounded-lg mr-2 bg-sky-100 cursor-pointer border-sky-700 text-blue-800 mb-1;
+                }
+
+                @apply flex items-center;
+            }
+            .clear-filter {
+                display: flex;
+                align-items: center;
+                padding: 2px;
+                color: #ff0000;
+                cursor: pointer;
+            }
+        }
+
+        .options-filters {
+            padding: 8px 0;
+
+            .option-item {
+                .item-name {
+                    @apply w-36 font-bold;
+                }
+
+                .item-options {
+                    .item {
+                        @apply px-2 mr-3 rounded-md cursor-pointer border border-sky-900 leading-7 hover:bg-sky-100;
+                    }
+
+                    .active {
+                        @apply bg-sky-200 text-blue-800;
+                    }
+
+                    @apply flex items-center;
+                }
+                @apply flex items-center mb-4;
+            }
+
+            .option-item-sort {
+                .item-name {
+                    @apply w-36 font-bold;
+                }
+                .item-sort {
+                    @apply flex justify-end;
+                }
+
+                .item-options {
+                    .item {
+                        @apply flex items-center px-2 mr-3 rounded-md cursor-pointer border border-sky-900 leading-7 hover:bg-sky-100;
+                    }
+
+                    .active {
+                        @apply bg-sky-200 text-blue-800;
+                    }
+
+                    @apply flex items-center;
+                }
+                @apply flex items-center justify-between mt-5 pt-1 border-t;
+            }
+        }
+    }
+}
+.list-items {
+    .list__product_wrap_catalog {
+        padding: 0px 20px;
+        margin: 20px auto 40px;
+
+        &_list {
+            display: flex;
+            flex-wrap: wrap;
+            padding: 30px 0;
+            border-bottom: 1px solid #ccc;
+            border-top: 1px solid #ccc;
+
+            &_item {
+                width: 25%;
+                position: relative;
+                text-align: center;
+
+                img {
+                    width: 80%;
+                    height: 200px;
+                    object-fit: cover;
+                    transition: transform 0.4s;
+                }
+
+                .item_info {
+                    padding: 10px;
+                    margin: 8px;
+
+                    &_name {
+                        font-family: "Oswald", sans-serif;
+                        font-size: 25px;
+                        font-weight: 600;
+                    }
+
+                    &_price {
+                        font-size: 20px;
+                        color: #9c9c9c;
+                    }
+                }
+
+                &:hover img {
+                    transform: scale(1.2);
+                    z-index: 100;
+                }
+
+                &:hover .item_info_price {
+                    color: rgb(211, 32, 32);
+                    font-weight: 600;
+                }
+            }
+        }
+    }
+}
+
+.pagination {
+    width: 100%;
+    text-align: center;
+    margin: 10px 0 20px;
+
+    .pagination_number {
+        display: inline-block;
+        padding: 8px;
+        margin: 0px 5px;
+        border-radius: 4px;
+        border: 1px solid #ccc;
+        background-color: #ccc;
+    }
+
+    .active {
+        background-color: #045eb7;
+        color: #ffffff;
+    }
+}
+
+@keyframes liner {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}

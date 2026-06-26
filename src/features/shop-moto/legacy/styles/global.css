@@ -1,0 +1,58 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-size: 15px;
+    color: #53575b;
+    font-family: "Inter",sans-serif;
+    min-width: 450px;
+}
+img,
+svg,
+video,
+canvas,
+audio,
+iframe,
+embed,
+object {
+    display: inline-block;
+    vertical-align: inherit;
+}
+ul {
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+}
+
+p {
+    margin: 0;
+}
+
+a {
+    text-decoration: none;
+    color: inherit;
+}
+
+.container{
+    margin: 0 auto;
+    max-width: 1232px;
+}
+
+.btn {
+    cursor: pointer;
+}
+
+.icon{
+    font-size: 15px;
+    margin-right: 4px;
+}
+
+@media screen and (max-width: 1290px) {
+    .container{
+        max-width: 1140px;
+        padding: 0 15px;
+    }
+}

@@ -1,0 +1,25 @@
+.buttonchat {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    border-radius: 50%;
+    border:2px solid #e84754;
+    
+    width: 60px;
+    height: 60px;
+    overflow: hidden;
+    z-index: 200;
+
+    img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+}
+
+@media screen and (max-width: 568px){
+    .buttonchat {
+        display: none;
+    }
+}

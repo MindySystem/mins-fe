@@ -6,6 +6,8 @@ const MOCK_FACILITIES: CourtFacility[] = [
     name: 'ProArena Cầu Giấy',
     address: 'Số 1 Duy Tân, Cầu Giấy, Hà Nội',
     distance: 1.2,
+    lat: 21.030253,
+    lng: 105.782301,
     rating: 4.8,
     imageUrl:
       'https://images.unsplash.com/photo-1521537634581-0dced2fee2ef?q=80&w=600&auto=format&fit=crop',
@@ -16,6 +18,8 @@ const MOCK_FACILITIES: CourtFacility[] = [
     name: 'VietNet Nam Từ Liêm',
     address: '15 Tố Hữu, Nam Từ Liêm, Hà Nội',
     distance: 2.5,
+    lat: 20.99954,
+    lng: 105.783572,
     rating: 4.5,
     imageUrl:
       'https://images.unsplash.com/photo-1521537634581-0dced2fee2ef?q=80&w=600&auto=format&fit=crop',
@@ -26,6 +30,8 @@ const MOCK_FACILITIES: CourtFacility[] = [
     name: 'Tennis Riverside',
     address: 'Phúc Xá, Ba Đình, Hà Nội',
     distance: 0.8,
+    lat: 21.044729,
+    lng: 105.848726,
     rating: 4.7,
     imageUrl:
       'https://images.unsplash.com/photo-1521537634581-0dced2fee2ef?q=80&w=600&auto=format&fit=crop',

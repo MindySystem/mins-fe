@@ -1,0 +1,55 @@
+
+.star-rating-box {
+    padding: 12px;
+    border: 1px solid #eee;
+    border-radius: 8px;
+
+    .star-rating {
+        margin-bottom: 10px;
+
+        i {
+            font-size: 40px;
+        }
+        input[type="radio"] {
+            display: none;
+        }
+    }
+    .level-rating {
+        margin-top: 10px;
+        padding: 4px 8px;
+        text-align: center;
+        height: 20px;
+    }
+    .comment-rating {
+        flex: 1;
+        margin-left: 40px;
+        position: relative;
+
+        textarea {
+            background: #f3f5f8;
+            height: 100px;
+            padding: 16px;
+            padding-right: 130px;
+
+            width: 100%;
+            border: 1px solid #f3f5f8;
+            border-radius: 4px;
+            resize: none;
+            outline: 1px solid #06c1d4;
+        }
+        button {
+            position: absolute;
+            border-radius: 56px;
+            bottom: 20px;
+            right: 16px;
+        }
+    }
+}
+.star {
+    justify-content: space-between;
+    color: rgb(255, 187, 0);
+
+    svg {
+        display: inline-block;
+    }
+}

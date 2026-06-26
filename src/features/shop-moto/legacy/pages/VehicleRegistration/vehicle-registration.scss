@@ -1,0 +1,15 @@
+.vehicle-registration {
+  min-height: 500px;
+  
+  &-title {
+      background-image: url("../../assets/images/maintenance.jpg");
+      background-repeat: no-repeat;
+      background-size: cover;
+      background-position: center;
+      @apply w-full text-4xl text-center p-10 font-bold uppercase mt-20 mb-6 text-white;
+  }
+
+  .content__title {
+    @apply text-2xl leading-6 text-gray-900 font-bold
+  }
+}

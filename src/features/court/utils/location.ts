@@ -35,6 +35,43 @@ export async function geocodeAddress(address: string): Promise<Coords | null> {
   }
 }
 
+export function getFacilityCoords(facility: { lat?: number; lng?: number } | null | undefined) {
+  if (!facility) return null
+  if (typeof facility.lat === 'number' && typeof facility.lng === 'number') {
+    return { lat: facility.lat, lng: facility.lng }
+  }
+
+  return null
+}
+
+export function buildDirectionsUrl(
+  facility: {
+    address: string
+    name?: string
+    lat?: number
+    lng?: number
+    mapUrl?: string
+  },
+  origin?: Coords | null,
+) {
+  if (facility.mapUrl) return facility.mapUrl
+
+  const destination = getFacilityCoords(facility)
+    ? `${facility.lat},${facility.lng}`
+    : `${facility.name ? `${facility.name}, ` : ''}${facility.address}`
+
+  const params = new URLSearchParams({
+    api: '1',
+    destination,
+  })
+
+  if (origin) {
+    params.set('origin', `${origin.lat},${origin.lng}`)
+  }
+
+  return `https://www.google.com/maps/dir/?${params.toString()}`
+}
+
 /**
  * Haversine formula to calculate distance in km
  */

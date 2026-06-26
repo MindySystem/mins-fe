@@ -64,7 +64,8 @@ export default function PortfolioPage() {
           </div>
 
           <a
-            href={portfolioProfile.cvUrl}
+            // href={portfolioProfile.cvUrl}
+            href="#"
             download
             className="inline-flex h-10 items-center gap-2 rounded-lg bg-[#f4b26b] px-4 text-sm font-semibold text-[#03071f] transition hover:bg-[#ffd098]"
           >
@@ -110,7 +111,7 @@ export default function PortfolioPage() {
               <div className="relative flex min-h-[30rem] items-center p-7 sm:p-10 lg:p-14">
                 <div className="absolute right-0 top-0 h-full w-[42%] border-l border-[#243356] bg-[#07142e]/55" />
                 <div className="portfolio-orbit absolute right-[14%] top-1/2 hidden h-72 w-72 -translate-y-1/2 rounded-full border border-[#66d7c5]/15 lg:block" />
-                <div className="portfolio-orbit-dot absolute right-[28%] top-[22%] hidden h-16 w-16 rounded-full border-4 border-[#03071f] bg-[#66d7c5] shadow-[0_0_0_1px_rgba(102,215,197,0.35)] lg:block" />
+                <div className="portfolio-orbit-dot absolute right-[18%] top-[12%] hidden h-16 w-16 rounded-full border-4 border-[#03071f] bg-[#66d7c5] shadow-[0_0_0_1px_rgba(102,215,197,0.35)] lg:block" />
 
                 <div className="relative max-w-2xl">
                   <p
@@ -146,7 +147,8 @@ export default function PortfolioPage() {
                       <ArrowDown className="ml-2 h-4 w-4" />
                     </a>
                     <a
-                      href={portfolioProfile.cvUrl}
+                      // href={portfolioProfile.cvUrl}
+                      href="#"
                       download
                       className="inline-flex h-11 items-center justify-center rounded-full border border-white/20 px-5 text-sm font-bold text-white transition hover:border-[#f4b26b] hover:text-[#f4b26b]"
                     >
@@ -398,7 +400,6 @@ export default function PortfolioPage() {
         </section>
 
         <section id="contact" className="relative flex min-h-screen items-center overflow-hidden bg-[#f7efe5] px-4 py-16 sm:px-6 lg:snap-start lg:px-8">
-          <div className="absolute right-0 top-0 hidden h-full w-[24vw] bg-[#03071f] lg:block" />
           <div className="mx-auto w-full max-w-7xl rounded-none border border-[#e2c9a6] bg-[#25466f] p-8 text-white shadow-2xl sm:p-10 lg:p-12">
             <div className="grid gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
               <div data-reveal>

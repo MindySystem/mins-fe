@@ -1,0 +1,22 @@
+.temporary-price {
+  .register-insurance {
+    &-item {
+      @apply mb-6;
+    }
+  }
+  .price-item {
+    .name {
+    }
+    .price {
+      @apply font-bold;
+    }
+    @apply flex justify-between items-center py-2;
+  }
+  .price-total {
+    .price {
+      @apply text-red-600;
+    }
+    @apply flex justify-between items-center py-2 text-xl font-bold bg-gray-100;
+  }
+  @apply p-4;
+}

@@ -1,0 +1,259 @@
+.modal__card {
+    display: flex;
+    border-radius: 8px;
+    flex-direction: column;
+
+    .card-title {
+        position: relative;
+        padding: 10px 24px;
+        color: #212529;
+        font-size: 24px;
+        line-height: 32px;
+        font-weight: 600;
+        border-bottom: solid 1px #e9ecef;
+        
+        @apply flex items-center justify-between;
+        p {
+            width: 90%;
+        }
+        .modal-close {
+            position: absolute;
+            right: 15px;
+            opacity: 0.5;
+
+            &:hover {
+                cursor: pointer;
+                opacity: 1;
+            }
+        }
+    }
+
+    .card-body {
+        position: relative;
+        padding-top: 16px;
+
+        .checkout-notifications {
+            p {
+                @apply p-1 px-2 bg-green-500 text-white rounded-tl-lg text-lg;
+            }
+            @apply px-2;
+        }
+
+        .card-product {
+            .product-card {
+                padding: 16px 24px;
+                border-bottom: 1px solid #e3e7ef;
+                @apply flex items-start justify-start;
+
+                .product-img {
+                    img {
+                        width: 100px;
+                    }
+                }
+                &-info {
+                    flex: 1;
+                    flex-basis: 25%;
+                    line-height: 1.5;
+
+                    &-title {
+                        font-weight: 600;
+                        padding-bottom: 0.6em;
+                    }
+                    li {
+                        padding-left: 20px;
+                        line-height: 1.5;
+                        color: #898989;
+                    }
+                }
+                &-quality {
+                    @apply flex items-center justify-start;
+                    flex-basis: 135px;
+                    flex-direction: column;
+                    width: 28px;
+                    height: 28px;
+                    margin-left: 16px;
+
+                    &-wrap {
+                        @apply flex items-center justify-start;
+                        .cs-input-cart {
+                            width: 30px;
+                            text-align: center;
+                        }
+                        .btn-minus,
+                        .btn-minus-active,
+                        .btn-plus {
+                            padding: 4px 8px;
+                            align-items: center;
+                            justify-content: center;
+                            border: solid 1px #e1e4e6;
+
+                            border-radius: 2px 2px;
+                            background: #fff;
+                            font-size: 16px;
+                            color: #444b52;
+
+                            &:hover {
+                                color: #32373d;
+                                background-color: rgb(233, 233, 233);
+                            }
+                        }
+                        .btn-minus-active {
+                            background-color: rgb(233, 233, 233);
+                            cursor: default;
+                        }
+                    }
+                    .btn-remove {
+                        margin-top: 20px;
+                        border: none;
+                        color: #fff;
+                        background-color: #f5420b;
+                        border-radius: 8px;
+                        padding: 8px;
+                    }
+                }
+                &-price {
+                    color: rgb(210, 30, 30);
+                    font-weight: 600;
+                    font-size: 16px;
+                    padding: 4px 8px;
+                    width: 100px;
+                }
+            }
+        }
+        .card-center {
+            display: flex;
+            align-items: unset;
+            justify-content: flex-end;
+            padding: 16px 24px;
+            border-bottom: 1px solid #e3e7ef;
+
+            .card-total {
+                width: 400px;
+
+                .cart-total-normal,
+                .cart-total-price {
+                    display: flex;
+                    align-items: flex-start;
+                    justify-content: space-between;
+                }
+
+                .cart-total-normal {
+                    margin-bottom: 10px;
+                    color: #757474;
+                }
+
+                .cart-total-price {
+                    color: rgb(210, 30, 30);
+                    font-size: 18px;
+                    font-weight: 600;
+                }
+            }
+        }
+
+        .card-form {
+            border-bottom: 1px solid #e3e7ef;
+
+            .card-form-block {
+                padding: 16px 24px;
+                max-width: 500px;
+
+                .card-form-inner,
+                .card-form-ship {
+                    display: flex;
+                    align-items: flex-start;
+                    justify-content: flex-start;
+                    padding: 16px 0 8px;
+                    font-size: 18px;
+
+                    .form-box-radio {
+                        display: flex;
+                        margin-right: 10px;
+                    }
+                }
+                .card-form-center {
+                    margin-top: 24px;
+
+                    .mr-10 {
+                        margin-right: 10px;
+                    }
+                    .card-form-info {
+                        display: flex;
+                        align-items: flex-start;
+                        justify-content: space-between;
+                    }
+                }
+                .card-form-ship {
+                    display: flex;
+                    align-items: flex-start;
+                    justify-content: flex-start;
+                    padding: 16px 0 8px;
+                    font-size: 16px;
+
+                    .form-box-ship {
+                        display: flex;
+                        margin-right: 10px;
+                    }
+                }
+                .card-form-ship-address {
+                    .card-form-inner {
+                        justify-content: space-between;
+                        .ship-address-city,
+                        .ship-address-district {
+                            width: 210px;
+                            display: inline-block;
+                        }
+                    }
+                }
+                .ship-address-specific {
+                    p {
+                        padding: 8px 12px;
+                        line-height: 1.5;
+                        font-size: 15px;
+                        border-radius: 8px;
+                        border: 1px solid #ccc;
+
+                        background-color: #e1e4e6;
+                    }
+                    @apply mt-10;
+                }
+                .form-error {
+                    color: #000;
+                    padding: 3px;
+                    margin-bottom: 10px;
+                    border-radius: 8px;
+                    text-align: center;
+                    background-color: rgba(255, 0, 0, 0.5);
+                }
+            }
+        }
+        .card-checkout {
+            margin: 30px auto;
+            text-align: center;
+
+            .btn-pending,
+            .btn-checkout {
+                background-color: #f5420b;
+                color: #fff;
+                border: none;
+                border-radius: 8px;
+
+                text-transform: uppercase;
+                font-weight: 600;
+                padding: 15px 23px;
+                font-size: 20px;
+                line-height: 20px;
+
+                &:hover {
+                    opacity: 0.7;
+                }
+            }
+            .btn-pending {
+                background-color: #f5e50b;
+            }
+            p {
+                margin-top: 10px;
+            }
+        }
+    }
+}
+

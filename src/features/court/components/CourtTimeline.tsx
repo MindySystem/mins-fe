@@ -24,7 +24,8 @@ import { BookingEvent } from './BookingEvent'
 const START_HOUR = 6 // 06:00
 const END_HOUR = 23 // 23:00
 const TOTAL_HOURS = END_HOUR - START_HOUR + 1
-const PIXELS_PER_HOUR = 140
+const DESKTOP_PIXELS_PER_HOUR = 140
+const MOBILE_PIXELS_PER_HOUR = 96
 const HOUR_SLOTS = Array.from({ length: TOTAL_HOURS }, (_, i) => i + START_HOUR)
 
 import { BookingModal } from './BookingModal'
@@ -42,6 +43,7 @@ export function CourtTimeline({ facilityId }: Props) {
   const [typeFilter, setTypeFilter] = useState<CourtType | 'all'>('all')
   const [selectedCourtId, setSelectedCourtId] = useState<string | null>(null)
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false)
+  const [isCompact, setIsCompact] = useState(false)
 
   // Drag selection state
   const [selection, setSelection] = useState<{
@@ -54,6 +56,17 @@ export function CourtTimeline({ facilityId }: Props) {
   const scrollContainerRef = useRef<HTMLDivElement>(null)
 
   const selectedCourt = schedule?.courts.find((c) => c.id === selectedCourtId) || null
+  const pixelsPerHour = isCompact ? MOBILE_PIXELS_PER_HOUR : DESKTOP_PIXELS_PER_HOUR
+  const timelineWidth = TOTAL_HOURS * pixelsPerHour
+
+  useEffect(() => {
+    const query = window.matchMedia('(max-width: 640px)')
+    const updateCompact = () => setIsCompact(query.matches)
+
+    updateCompact()
+    query.addEventListener('change', updateCompact)
+    return () => query.removeEventListener('change', updateCompact)
+  }, [])
 
   useEffect(() => {
     async function loadData() {
@@ -76,11 +89,11 @@ export function CourtTimeline({ facilityId }: Props) {
     if (!loading && schedule && scrollContainerRef.current) {
       const currentHour = new Date().getHours()
       if (currentHour >= START_HOUR && currentHour <= END_HOUR) {
-        const scrollAmount = (currentHour - START_HOUR) * PIXELS_PER_HOUR - 100
+        const scrollAmount = (currentHour - START_HOUR) * pixelsPerHour - (isCompact ? 60 : 100)
         scrollContainerRef.current.scrollTo({ left: Math.max(0, scrollAmount), behavior: 'smooth' })
       }
     }
-  }, [loading, schedule])
+  }, [isCompact, loading, pixelsPerHour, schedule])
 
   const filteredCourts =
     schedule?.courts.filter((court) => {
@@ -93,19 +106,19 @@ export function CourtTimeline({ facilityId }: Props) {
   const goPrevDay = () => setCurrentDate(subDays(currentDate, 1))
   const goToToday = () => setCurrentDate(new Date())
 
-  const handleMouseDown = (courtId: string, hour: number) => {
+  const handlePointerDown = (courtId: string, hour: number) => {
     setSelection({ courtId, start: hour, end: hour + 1 })
     setIsDragging(true)
     setSelectedCourtId(courtId)
   }
 
-  const handleMouseEnter = (hour: number) => {
+  const handlePointerEnter = (hour: number) => {
     if (isDragging && selection) {
       setSelection({ ...selection, end: hour + 1 })
     }
   }
 
-  const handleMouseUp = () => {
+  const handlePointerUp = () => {
     setIsDragging(false)
   }
 
@@ -118,70 +131,72 @@ export function CourtTimeline({ facilityId }: Props) {
   }
 
   return (
-    <div className="flex h-[calc(100vh-120px)] flex-col bg-slate-50/20">
+    <div className="relative flex min-h-[590px] flex-col bg-slate-50/20 sm:h-[calc(100vh-120px)] sm:min-h-0">
       <div className="flex flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         {/* Header controls omitted for brevity in replace, but I will keep them */}
         <div className="flex flex-col border-b border-slate-200 bg-slate-50/50">
-          <div className="flex items-center justify-between px-6 py-4">
-            <h2 className="flex items-center gap-2 text-xl font-bold text-slate-900">
+          <div className="flex flex-col gap-3 px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-4">
+            <h2 className="flex items-center gap-2 text-lg font-bold text-slate-900 sm:text-xl">
               Lịch Đặt Sân
               {loading && (
                 <Loader2 className="h-5 w-5 animate-spin" style={{ color: tenant.primaryColor }} />
               )}
             </h2>
 
-            <div className="flex items-center gap-3">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
               {selectedCourt && (
                 <Button
-                  className="rounded-xl px-6 shadow-md transition-all hover:scale-105"
+                  className="h-10 w-full rounded-xl px-4 text-sm shadow-md transition-all hover:scale-105 sm:w-auto sm:px-6"
                   style={{ backgroundColor: tenant.primaryColor }}
                   onClick={() => setIsBookingModalOpen(true)}
                 >
                   <Plus className="mr-2 h-4 w-4" /> Đặt {selectedCourt.name}
                 </Button>
               )}
-              <div className="ml-2 flex items-center rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 rounded-lg"
-                  onClick={goPrevDay}
-                >
-                  <ChevronLeft className="h-4 w-4 text-slate-600" />
-                </Button>
-                <div className="flex min-w-[150px] items-center justify-center gap-2 px-4 font-medium text-slate-700">
-                  <CalendarIcon className="h-4 w-4" style={{ color: tenant.primaryColor }} />
-                  {format(currentDate, 'dd/MM/yyyy')}
+              <div className="grid grid-cols-[1fr_auto] gap-2 sm:flex sm:items-center sm:gap-3">
+                <div className="flex items-center rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 rounded-lg"
+                    onClick={goPrevDay}
+                  >
+                    <ChevronLeft className="h-4 w-4 text-slate-600" />
+                  </Button>
+                  <div className="flex min-w-0 flex-1 items-center justify-center gap-2 px-2 text-sm font-medium text-slate-700 sm:min-w-[150px] sm:px-4 sm:text-base">
+                    <CalendarIcon className="h-4 w-4 shrink-0" style={{ color: tenant.primaryColor }} />
+                    {format(currentDate, 'dd/MM/yyyy')}
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 rounded-lg"
+                    onClick={goNextDay}
+                  >
+                    <ChevronRight className="h-4 w-4 text-slate-600" />
+                  </Button>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 rounded-lg"
-                  onClick={goNextDay}
-                >
-                  <ChevronRight className="h-4 w-4 text-slate-600" />
+                <Button variant="outline" className="h-10 rounded-xl px-3 text-sm sm:px-4" onClick={goToToday}>
+                  Hôm nay
                 </Button>
               </div>
-              <Button variant="outline" className="rounded-xl px-4" onClick={goToToday}>
-                Hôm nay
-              </Button>
             </div>
           </div>
 
-          <div className="flex items-center gap-4 px-6 pb-4">
-            <div className="relative max-w-sm flex-1">
+          <div className="flex flex-col gap-3 px-3 pb-3 sm:flex-row sm:items-center sm:gap-4 sm:px-6 sm:pb-4">
+            <div className="relative w-full flex-1 sm:max-w-sm">
               <Search className="absolute top-2.5 left-3 h-4 w-4 text-slate-400" />
               <Input
                 placeholder="Tìm tên sân..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="rounded-xl border-slate-200 bg-white pl-9 focus-visible:ring-offset-0"
+                className="h-10 rounded-xl border-slate-200 bg-white pr-10 pl-9 text-sm focus-visible:ring-offset-0"
               />
               {searchQuery && (
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="absolute top-2.5 right-3"
+                  className="absolute top-1 right-1 h-8 w-8 rounded-lg"
                   onClick={() => setSearchQuery('')}
                 >
                   <X className="h-4 w-4 text-slate-400 hover:text-slate-600" />
@@ -189,13 +204,16 @@ export function CourtTimeline({ facilityId }: Props) {
               )}
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="scrollbar-hide flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
               {(['all', 'badminton', 'tennis', 'pickleball'] as const).map((type) => (
                 <Button
                   key={type}
                   variant={typeFilter === type ? 'default' : 'outline'}
                   size="sm"
-                  className={clsx('rounded-lg capitalize', typeFilter === type && 'shadow-sm')}
+                  className={clsx(
+                    'h-9 shrink-0 rounded-lg px-3 text-xs capitalize sm:text-sm',
+                    typeFilter === type && 'shadow-sm',
+                  )}
                   style={typeFilter === type ? { backgroundColor: tenant.primaryColor } : {}}
                   onClick={() => setTypeFilter(type)}
                 >
@@ -208,16 +226,16 @@ export function CourtTimeline({ facilityId }: Props) {
 
         {/* Grid Timeline Area */}
         <div className="relative flex flex-1 overflow-hidden">
-          <div className="z-20 flex w-56 flex-shrink-0 flex-col border-r border-slate-200 bg-white shadow-[4px_0_8px_-4px_rgba(0,0,0,0.05)]">
-            <div className="flex h-14 items-center border-b border-slate-200 bg-slate-50 px-4 text-xs font-semibold tracking-wider text-slate-500 uppercase">
-              Danh sách sân
+          <div className="z-20 flex w-36 flex-shrink-0 flex-col border-r border-slate-200 bg-white shadow-[4px_0_8px_-4px_rgba(0,0,0,0.05)] sm:w-56">
+            <div className="flex h-12 items-center border-b border-slate-200 bg-slate-50 px-3 text-[10px] font-semibold tracking-wider text-slate-500 uppercase sm:h-14 sm:px-4 sm:text-xs">
+              Sân
             </div>
             <div className="hidden-scrollbar flex-1 overflow-y-auto">
               {filteredCourts.map((court) => (
                 <div
                   key={court.id}
                   className={clsx(
-                    'flex h-24 cursor-pointer flex-col justify-center border-b border-slate-100 px-4 transition-colors',
+                    'flex h-20 cursor-pointer flex-col justify-center border-b border-slate-100 px-3 transition-colors sm:h-24 sm:px-4',
                     selectedCourtId === court.id ? 'bg-emerald-50/50' : 'hover:bg-slate-50',
                   )}
                   style={
@@ -226,21 +244,21 @@ export function CourtTimeline({ facilityId }: Props) {
                       : {}
                   }
                   onClick={() => setSelectedCourtId(court.id === selectedCourtId ? null : court.id)}
-                >
+                  >
                   <span
                     className={clsx(
-                      'font-bold',
+                      'line-clamp-2 text-sm font-bold sm:text-base',
                       selectedCourtId === court.id ? 'text-emerald-700' : 'text-slate-800',
                     )}
                     style={selectedCourtId === court.id ? { color: tenant.primaryColor } : {}}
                   >
                     {court.name}
                   </span>
-                  <div className="mt-1 flex items-center justify-between">
+                  <div className="mt-1 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                     <span className="text-[10px] font-bold tracking-wider text-slate-400 uppercase">
                       {court.type}
                     </span>
-                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-600">
+                    <span className="w-fit rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-600">
                       {court.pricePerHour.toLocaleString()}đ/h
                     </span>
                   </div>
@@ -256,14 +274,14 @@ export function CourtTimeline({ facilityId }: Props) {
 
           <div ref={scrollContainerRef} className="relative flex-1 overflow-auto bg-slate-50/20">
             <div
-              className="sticky top-0 z-10 flex h-14 border-b border-slate-200 bg-white shadow-sm"
-              style={{ width: TOTAL_HOURS * PIXELS_PER_HOUR }}
+              className="sticky top-0 z-10 flex h-12 border-b border-slate-200 bg-white shadow-sm sm:h-14"
+              style={{ width: timelineWidth }}
             >
               {HOUR_SLOTS.map((hour) => (
                 <div
                   key={hour}
-                  className="group flex flex-shrink-0 items-center border-l border-slate-100 text-sm font-bold text-slate-400"
-                  style={{ width: PIXELS_PER_HOUR }}
+                  className="group flex flex-shrink-0 items-center border-l border-slate-100 text-xs font-bold text-slate-400 sm:text-sm"
+                  style={{ width: pixelsPerHour }}
                 >
                   <div
                     className="w-full text-center transition-colors group-hover:text-emerald-600"
@@ -277,7 +295,7 @@ export function CourtTimeline({ facilityId }: Props) {
               ))}
             </div>
 
-            <div className="relative" style={{ width: TOTAL_HOURS * PIXELS_PER_HOUR }}>
+            <div className="relative" style={{ width: timelineWidth }}>
               <div className="pointer-events-none absolute inset-0 flex">
                 {Array.from({ length: TOTAL_HOURS * 4 }).map((_, i) => (
                   <div
@@ -286,7 +304,7 @@ export function CourtTimeline({ facilityId }: Props) {
                       'h-full border-l',
                       i % 4 === 0 ? 'border-slate-200' : 'border-dashed border-slate-100/50',
                     )}
-                    style={{ width: PIXELS_PER_HOUR / 4 }}
+                    style={{ width: pixelsPerHour / 4 }}
                   />
                 ))}
               </div>
@@ -298,21 +316,21 @@ export function CourtTimeline({ facilityId }: Props) {
                   <div
                     key={court.id}
                     className={clsx(
-                      'group relative h-24 border-b border-slate-100 transition-colors',
+                      'group relative h-20 border-b border-slate-100 transition-colors sm:h-24',
                       selectedCourtId === court.id ? 'bg-emerald-50/30' : 'hover:bg-slate-50/50',
                     )}
-                    onMouseLeave={() => isDragging && setIsDragging(false)}
+                    onPointerLeave={() => isDragging && setIsDragging(false)}
                   >
                     {/* Time slots for dragging */}
                     <div className="absolute inset-0 flex">
                       {HOUR_SLOTS.map((hour) => (
                         <div
                           key={hour}
-                          className="h-full flex-shrink-0"
-                          style={{ width: PIXELS_PER_HOUR }}
-                          onMouseDown={() => handleMouseDown(court.id, hour)}
-                          onMouseEnter={() => handleMouseEnter(hour)}
-                          onMouseUp={handleMouseUp}
+                          className="h-full flex-shrink-0 touch-pan-x"
+                          style={{ width: pixelsPerHour }}
+                          onPointerDown={() => handlePointerDown(court.id, hour)}
+                          onPointerEnter={() => handlePointerEnter(hour)}
+                          onPointerUp={handlePointerUp}
                         />
                       ))}
                     </div>
@@ -321,8 +339,9 @@ export function CourtTimeline({ facilityId }: Props) {
                       <BookingEvent
                         key={booking.id}
                         booking={booking}
-                        pixelsPerHour={PIXELS_PER_HOUR}
+                        pixelsPerHour={pixelsPerHour}
                         startHourOfDay={START_HOUR}
+                        compact={isCompact}
                         onDelete={(id) => {
                           if (schedule) {
                             setSchedule({
@@ -342,8 +361,8 @@ export function CourtTimeline({ facilityId }: Props) {
                         style={{
                           left:
                             (Math.min(selection.start, selection.end - 1) - START_HOUR) *
-                            PIXELS_PER_HOUR,
-                          width: Math.abs(selection.end - selection.start) * PIXELS_PER_HOUR,
+                            pixelsPerHour,
+                          width: Math.abs(selection.end - selection.start) * pixelsPerHour,
                           backgroundColor: `${tenant.primaryColor}20`,
                           borderColor: tenant.primaryColor,
                           borderStyle: isDragging ? 'dashed' : 'solid',
@@ -399,13 +418,13 @@ export function CourtTimeline({ facilityId }: Props) {
 
       {/* Floating Confirm Bar */}
       {selection && !isDragging && (
-        <div className="animate-in slide-in-from-bottom-10 absolute bottom-8 left-1/2 z-50 flex -translate-x-1/2 items-center gap-4 rounded-3xl border border-white/20 bg-white/80 p-4 shadow-[0_20px_50px_rgba(0,0,0,0.15)] backdrop-blur-xl duration-500">
+        <div className="animate-in slide-in-from-bottom-10 fixed inset-x-3 bottom-3 z-50 flex flex-col gap-3 rounded-2xl border border-white/40 bg-white/95 p-3 shadow-[0_20px_50px_rgba(0,0,0,0.18)] backdrop-blur-xl duration-500 sm:absolute sm:inset-x-auto sm:bottom-8 sm:left-1/2 sm:flex-row sm:items-center sm:gap-4 sm:rounded-3xl sm:bg-white/80 sm:p-4 sm:-translate-x-1/2">
           <div className="flex flex-col">
             <span className="text-[10px] font-black tracking-widest text-slate-400 uppercase">
               Thời gian đã chọn
             </span>
-            <div className="flex items-center gap-2">
-              <span className="text-lg font-black text-slate-900">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-base font-black text-slate-900 sm:text-lg">
                 {Math.min(selection.start, selection.end - 1)
                   .toString()
                   .padStart(2, '0')}
@@ -421,20 +440,20 @@ export function CourtTimeline({ facilityId }: Props) {
               </span>
             </div>
           </div>
-          <div className="ml-4 flex items-center gap-2">
+          <div className="grid grid-cols-2 gap-2 sm:ml-4 sm:flex sm:items-center">
             <Button
               variant="ghost"
               onClick={clearSelection}
-              className="rounded-2xl font-bold text-slate-500 hover:bg-slate-100"
+              className="h-10 rounded-xl font-bold text-slate-500 hover:bg-slate-100 sm:rounded-2xl"
             >
               Hủy
             </Button>
             <Button
               onClick={confirmBooking}
-              className="rounded-2xl px-8 font-black shadow-lg shadow-emerald-500/20 transition-all hover:scale-105 active:scale-95"
+              className="h-10 rounded-xl px-4 font-black shadow-lg shadow-emerald-500/20 transition-all hover:scale-105 active:scale-95 sm:rounded-2xl sm:px-8"
               style={{ backgroundColor: tenant.primaryColor }}
             >
-              Tiếp tục đặt sân
+              Tiếp tục
             </Button>
           </div>
         </div>

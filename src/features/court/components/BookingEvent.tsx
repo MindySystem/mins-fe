@@ -8,6 +8,7 @@ interface Props {
   pixelsPerHour: number
   startHourOfDay: number
   onDelete?: (id: string) => void
+  compact?: boolean
 }
 
 function timeToPixels(timeStr: string, pixelsPerHour: number, startHourOfDay: number): number {
@@ -16,7 +17,7 @@ function timeToPixels(timeStr: string, pixelsPerHour: number, startHourOfDay: nu
   return (totalHours - startHourOfDay) * pixelsPerHour
 }
 
-export function BookingEvent({ booking, pixelsPerHour, startHourOfDay, onDelete }: Props) {
+export function BookingEvent({ booking, pixelsPerHour, startHourOfDay, onDelete, compact }: Props) {
   const left = timeToPixels(booking.startTime, pixelsPerHour, startHourOfDay)
   const endLeft = timeToPixels(booking.endTime, pixelsPerHour, startHourOfDay)
   const width = endLeft - left
@@ -33,24 +34,28 @@ export function BookingEvent({ booking, pixelsPerHour, startHourOfDay, onDelete 
   return (
     <div
       className={twMerge(
-        'absolute top-1.5 bottom-1.5 rounded-lg border shadow-sm px-2 py-1 overflow-hidden transition-all hover:z-10 hover:shadow-md cursor-pointer group',
+        'group absolute top-1.5 bottom-1.5 cursor-pointer overflow-hidden rounded-lg border px-1.5 py-1 shadow-sm transition-all hover:z-10 hover:shadow-md sm:px-2',
         bgColor
       )}
       style={{ left: `${left}px`, width: `${width}px` }}
     >
-      <div className="flex items-center gap-1.5 truncate font-semibold text-sm">
-        <User className="w-3.5 h-3.5 opacity-70 flex-shrink-0" />
+      <div className="flex items-center gap-1 truncate text-xs font-semibold sm:gap-1.5 sm:text-sm">
+        <User className="h-3 w-3 flex-shrink-0 opacity-70 sm:h-3.5 sm:w-3.5" />
         <span className="truncate">{booking.customer.name}</span>
       </div>
-      <div className="text-[11px] opacity-75 mt-0.5 font-medium flex justify-between items-center">
-        <span>{booking.startTime} - {booking.endTime}</span>
+      <div className="mt-0.5 flex items-center justify-between text-[10px] font-medium opacity-75 sm:text-[11px]">
+        <span className="truncate">
+          {compact ? booking.startTime : `${booking.startTime} - ${booking.endTime}`}
+        </span>
         {booking.paymentStatus === 'unpaid' && (
-          <span className="text-[10px] bg-red-500 text-white px-1 rounded font-bold ml-1">NỢ</span>
+          <span className="ml-1 rounded bg-red-500 px-1 text-[9px] font-bold text-white sm:text-[10px]">
+            NỢ
+          </span>
         )}
       </div>
       
       {/* Tooltip on hover */}
-      <div className="absolute hidden group-hover:block z-50 bottom-full left-0 mb-1 w-48 bg-slate-900 text-white text-xs rounded-lg p-2 shadow-xl border border-slate-700">
+      <div className="absolute bottom-full left-0 z-50 mb-1 hidden w-48 rounded-lg border border-slate-700 bg-slate-900 p-2 text-xs text-white shadow-xl group-hover:block">
         <div className="font-bold mb-1">{booking.customer.name}</div>
         <div className="text-slate-300 mb-0.5">SĐT: {booking.customer.phone}</div>
         <div className="text-slate-300 mb-1">Giờ: {booking.startTime} - {booking.endTime}</div>
