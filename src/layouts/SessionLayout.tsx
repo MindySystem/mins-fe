@@ -51,7 +51,7 @@ export default function SessionLayout() {
           <div className="flex items-center gap-1.5 sm:gap-2">
             {/* Logo Dashboard */}
             <Link
-              to="/"
+              to="/home"
               className="flex items-center gap-1.5 rounded-lg py-1 hover:opacity-90"
               aria-label="Về trang chủ"
             >

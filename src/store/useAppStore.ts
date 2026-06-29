@@ -1,15 +1,22 @@
 import { create } from 'zustand'
 import { devtools, persist } from 'zustand/middleware'
 
-import {
-  type PlatformAppCode,
-  type PlatformWorkspace,
-} from '@/core/platform/registry'
+import { type PlatformAppCode, type PlatformWorkspace } from '@/core/platform/registry'
 import { getTenantFromHostname, type TenantConfig } from '@/utils/tenant.util'
 
 export type UserRole = 'admin' | 'user' | 'shop_manager' | 'staff'
 export type AccountType = 'customer' | 'business'
 export type SkillLevel = 'beginner' | 'casual' | 'intermediate' | 'advanced'
+export type MobileHomeLayout = 'comfortable' | 'compact'
+export type MobileHomeWallpaper = 'aurora' | 'daylight' | 'graphite'
+
+export interface MobileHomeSettings {
+  layout: MobileHomeLayout
+  wallpaper: MobileHomeWallpaper
+  backgroundImage: string
+  showLabels: boolean
+  showDock: boolean
+}
 
 export interface User {
   id: number
@@ -43,12 +50,19 @@ interface AppState {
   workspaces: PlatformWorkspace[]
   workspaceAppMap: Record<string, PlatformAppCode[]>
   workspaceUserAccessMap: Record<string, Record<number, PlatformAppCode[]>>
+  mobileHomeSettings: MobileHomeSettings
   setUser: (user: User | null) => void
   setTenant: (tenant: TenantConfig) => void
   setLoading: (isLoading: boolean) => void
+  updateMobileHomeSettings: (settings: Partial<MobileHomeSettings>) => void
+  resetMobileHomeSettings: () => void
   syncPlatformContext: (context: PlatformContextUpdate) => void
   setCurrentWorkspaceId: (workspaceId: string) => void
-  upsertWorkspace: (workspace: PlatformWorkspace, appCodes?: PlatformAppCode[], userId?: number) => void
+  upsertWorkspace: (
+    workspace: PlatformWorkspace,
+    appCodes?: PlatformAppCode[],
+    userId?: number,
+  ) => void
   installApp: (appCode: PlatformAppCode, workspaceId?: string) => void
   uninstallApp: (appCode: PlatformAppCode, workspaceId?: string) => void
   grantUserAppAccess: (workspaceId: string, userId: number, appCode: PlatformAppCode) => void
@@ -61,6 +75,14 @@ const emptyPlatformContext: PlatformContextSnapshot = {
   workspaces: [],
   workspaceAppMap: {},
   workspaceUserAccessMap: {},
+}
+
+export const defaultMobileHomeSettings: MobileHomeSettings = {
+  layout: 'comfortable',
+  wallpaper: 'aurora',
+  backgroundImage: '',
+  showLabels: true,
+  showDock: true,
 }
 
 const legacyWorkspaceIds = new Set([
@@ -78,7 +100,10 @@ function shouldResetLegacyContext(workspaces: unknown): boolean {
 
   const ids = workspaces
     .map((workspace) =>
-      workspace && typeof workspace === 'object' && 'id' in workspace && typeof workspace.id === 'string'
+      workspace &&
+      typeof workspace === 'object' &&
+      'id' in workspace &&
+      typeof workspace.id === 'string'
         ? workspace.id
         : null,
     )
@@ -94,11 +119,20 @@ export const useAppStore = create<AppState>()(
         user: null,
         tenant: getTenantFromHostname(),
         isLoading: false,
+        mobileHomeSettings: defaultMobileHomeSettings,
         ...emptyPlatformContext,
 
         setUser: (user) => set({ user }),
         setTenant: (tenant) => set({ tenant }),
         setLoading: (isLoading) => set({ isLoading }),
+        updateMobileHomeSettings: (settings) =>
+          set((state) => ({
+            mobileHomeSettings: {
+              ...state.mobileHomeSettings,
+              ...settings,
+            },
+          })),
+        resetMobileHomeSettings: () => set({ mobileHomeSettings: defaultMobileHomeSettings }),
         syncPlatformContext: (context) =>
           set((state) => ({
             currentWorkspaceId: context.currentWorkspaceId,
@@ -197,7 +231,7 @@ export const useAppStore = create<AppState>()(
       }),
       {
         name: 'sportcenter-storage',
-        version: 2,
+        version: 3,
         migrate: (persistedState, version) => {
           const state = (persistedState ?? {}) as Partial<AppState>
 
@@ -206,6 +240,10 @@ export const useAppStore = create<AppState>()(
               user: state.user ?? null,
               ...state,
               ...emptyPlatformContext,
+              mobileHomeSettings: {
+                ...defaultMobileHomeSettings,
+                ...(state.mobileHomeSettings ?? {}),
+              },
             }
           }
 
@@ -215,6 +253,10 @@ export const useAppStore = create<AppState>()(
             workspaces: state.workspaces ?? [],
             workspaceAppMap: state.workspaceAppMap ?? {},
             workspaceUserAccessMap: state.workspaceUserAccessMap ?? {},
+            mobileHomeSettings: {
+              ...defaultMobileHomeSettings,
+              ...(state.mobileHomeSettings ?? {}),
+            },
           }
         },
         partialize: (state) => ({
@@ -223,6 +265,7 @@ export const useAppStore = create<AppState>()(
           workspaces: state.workspaces,
           workspaceAppMap: state.workspaceAppMap,
           workspaceUserAccessMap: state.workspaceUserAccessMap,
+          mobileHomeSettings: state.mobileHomeSettings,
         }),
       },
     ),

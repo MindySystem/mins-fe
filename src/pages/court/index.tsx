@@ -43,7 +43,7 @@ export default function CourtPage() {
               variant="ghost"
               size="sm"
               className="h-9 rounded-xl px-2 text-sm text-slate-500 hover:bg-slate-200 sm:px-3"
-              onClick={() => (selectedFacilityId ? setSelectedFacilityId(null) : navigate('/'))}
+              onClick={() => (selectedFacilityId ? setSelectedFacilityId(null) : navigate('/home'))}
             >
               <ArrowLeft className="mr-1.5 h-4 w-4 sm:mr-2" />
               <span className="hidden sm:inline">

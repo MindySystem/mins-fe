@@ -3,26 +3,46 @@ import { Link, Navigate, useNavigate } from 'react-router-dom'
 import type { LucideIcon } from 'lucide-react'
 import {
   BadgeDollarSign,
+  Check,
   ChevronDown,
   FileBarChart2,
+  Image as ImageIcon,
+  LayoutGrid,
+  Settings2,
+  ShieldCheck,
+  Store,
   Trash2,
+  UserRound,
   Users2,
   Warehouse,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { PlatformLayout } from '@/layouts/PlatformLayout'
-import { cn } from '@/lib/utils'
-import { platformApi, type PlatformAppDto, type PlatformWorkspaceDto } from '@/services/platform'
-import { useAppStore } from '@/store/useAppStore'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
 import {
   getPlatformApp,
   type PlatformAppCode,
   type PlatformWorkspace,
   type WorkspaceType,
 } from '@/core/platform/registry'
+import { getPhoneWallpaperStyle, phoneWallpaperOptions } from '@/layouts/MobilePhoneShell'
+import { PlatformLayout } from '@/layouts/PlatformLayout'
+import { cn } from '@/lib/utils'
+import { platformApi, type PlatformAppDto, type PlatformWorkspaceDto } from '@/services/platform'
+import {
+  defaultMobileHomeSettings,
+  type MobileHomeSettings,
+  useAppStore,
+} from '@/store/useAppStore'
 
 type SuggestedApp = {
   name: string
@@ -39,6 +59,13 @@ type HomeCard = {
   icon: LucideIcon
   launchPath: string
   adminOnly?: boolean
+}
+
+type MobileHomeAction = {
+  label: string
+  icon: LucideIcon
+  tone: string
+  onClick: () => void
 }
 
 function toHomeCard(app: PlatformAppDto): HomeCard {
@@ -65,7 +92,9 @@ function toWorkspaceState(workspace: PlatformWorkspaceDto, ownerName: string): P
       : 'company'
 
   const status = (
-    workspace.status === 'active' || workspace.status === 'pending' || workspace.status === 'disabled'
+    workspace.status === 'active' ||
+    workspace.status === 'pending' ||
+    workspace.status === 'disabled'
       ? workspace.status
       : 'active'
   ) as 'active' | 'pending' | 'disabled'
@@ -140,6 +169,323 @@ const suggestedApps: SuggestedApp[] = [
   },
 ]
 
+function getAppTone(code: string) {
+  if (code === 'team_badminton') return 'bg-[linear-gradient(135deg,#34c759,#12b76a)]'
+  if (code === 'court_management') return 'bg-[linear-gradient(135deg,#ffb347,#ff7e29)]'
+  if (code === 'motorbike_shop') return 'bg-[linear-gradient(135deg,#ff922b,#ff5f57)]'
+  if (code === 'admin_portal') return 'bg-[linear-gradient(135deg,#0f172a,#334155)]'
+  return 'bg-[linear-gradient(135deg,#2457f5,#14b8a6)]'
+}
+
+function MobileHomeScreen({
+  apps,
+  currentWorkspaceId,
+  isAdmin,
+  loading,
+  userName,
+  onOpenApp,
+}: {
+  apps: HomeCard[]
+  currentWorkspaceId: string
+  isAdmin: boolean
+  loading: boolean
+  userName: string
+  onOpenApp: (path: string) => void
+}) {
+  const mobileHomeSettings = useAppStore((state) => state.mobileHomeSettings)
+  const updateMobileHomeSettings = useAppStore((state) => state.updateMobileHomeSettings)
+  const resetMobileHomeSettings = useAppStore((state) => state.resetMobileHomeSettings)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [draftSettings, setDraftSettings] = useState<MobileHomeSettings>(mobileHomeSettings)
+  const wallpaperClass =
+    phoneWallpaperOptions.find((item) => item.value === mobileHomeSettings.wallpaper)?.className ??
+    phoneWallpaperOptions[0].className
+  const wallpaperStyle = getPhoneWallpaperStyle(mobileHomeSettings)
+  const compact = mobileHomeSettings.layout === 'compact'
+  const gridClass = compact ? 'grid-cols-4 gap-x-3 gap-y-5' : 'grid-cols-3 gap-x-5 gap-y-7'
+  const iconClass = compact ? 'h-14 w-14 rounded-[17px]' : 'h-[72px] w-[72px] rounded-[22px]'
+  const settingsAction: MobileHomeAction = {
+    label: 'Settings',
+    icon: Settings2,
+    tone: 'bg-white/18 text-white',
+    onClick: () => setSettingsOpen(true),
+  }
+  const appStoreAction: MobileHomeAction = {
+    label: currentWorkspaceId ? 'App Store' : 'Setup',
+    icon: Store,
+    tone: 'bg-white/18 text-white',
+    onClick: () => onOpenApp(currentWorkspaceId ? '/app-store' : '/platform/setup'),
+  }
+  const profileAction: MobileHomeAction = {
+    label: 'Hồ sơ',
+    icon: UserRound,
+    tone: 'bg-white/18 text-white',
+    onClick: () => onOpenApp('/profile'),
+  }
+  const adminAction: MobileHomeAction = {
+    label: 'Admin',
+    icon: ShieldCheck,
+    tone: 'bg-white/18 text-white',
+    onClick: () => onOpenApp('/admin/apps'),
+  }
+  const phoneActions = [
+    settingsAction,
+    appStoreAction,
+    profileAction,
+    ...(isAdmin ? [adminAction] : []),
+  ]
+
+  useEffect(() => {
+    if (settingsOpen) {
+      setDraftSettings(mobileHomeSettings)
+    }
+  }, [mobileHomeSettings, settingsOpen])
+
+  const handleSaveSettings = () => {
+    updateMobileHomeSettings({
+      ...draftSettings,
+      backgroundImage: draftSettings.backgroundImage.trim(),
+    })
+    setSettingsOpen(false)
+  }
+
+  return (
+    <section
+      className={cn(
+        'relative flex h-dvh min-h-dvh flex-col overflow-hidden text-white xl:hidden',
+        !mobileHomeSettings.backgroundImage.trim() && wallpaperClass,
+      )}
+      style={wallpaperStyle}
+    >
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(2,6,23,0.08)_0%,rgba(2,6,23,0.22)_58%,rgba(2,6,23,0.42)_100%)]" />
+
+      <div className="relative z-10 px-5 pt-6">
+        <div className="min-w-0">
+          <div className="text-[13px] font-medium text-white/75">SportHub</div>
+          <h1 className="truncate text-[26px] font-semibold tracking-normal text-white">
+            {userName}
+          </h1>
+        </div>
+      </div>
+
+      <div className="relative z-10 min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pt-8 pb-4">
+        <div className={cn('grid', gridClass)}>
+          {phoneActions.map((item) => (
+            <button
+              key={`phone-action-${item.label}`}
+              type="button"
+              onClick={item.onClick}
+              className="flex min-w-0 flex-col items-center text-center"
+            >
+              <span
+                className={cn(
+                  'grid place-items-center shadow-[0_16px_36px_rgba(15,23,42,0.24)] ring-1 ring-white/20 backdrop-blur-xl',
+                  iconClass,
+                  item.tone,
+                )}
+              >
+                <item.icon className={compact ? 'h-7 w-7' : 'h-9 w-9'} />
+              </span>
+              {mobileHomeSettings.showLabels ? (
+                <span className="mt-2 w-full truncate px-1 text-[12px] leading-4 font-medium text-white drop-shadow">
+                  {item.label}
+                </span>
+              ) : null}
+            </button>
+          ))}
+
+          {loading
+            ? Array.from({ length: compact ? 8 : 6 }).map((_, index) => (
+                <div key={`mobile-home-skeleton-${index}`} className="flex flex-col items-center">
+                  <div className={cn('animate-pulse bg-white/25 backdrop-blur-xl', iconClass)} />
+                  {mobileHomeSettings.showLabels ? (
+                    <div className="mt-2 h-3 w-12 animate-pulse rounded-full bg-white/25" />
+                  ) : null}
+                </div>
+              ))
+            : null}
+
+          {!loading
+            ? apps.map((item) => {
+                const Icon = item.icon
+
+                return (
+                  <button
+                    key={item.code}
+                    type="button"
+                    onClick={() => onOpenApp(item.launchPath)}
+                    className="flex min-w-0 flex-col items-center text-center"
+                  >
+                    <span
+                      className={cn(
+                        'grid place-items-center text-white shadow-[0_16px_36px_rgba(15,23,42,0.24)] ring-1 ring-white/20',
+                        iconClass,
+                        getAppTone(item.code),
+                      )}
+                    >
+                      <Icon className={compact ? 'h-7 w-7' : 'h-9 w-9'} />
+                    </span>
+                    {mobileHomeSettings.showLabels ? (
+                      <span className="mt-2 w-full truncate px-1 text-[12px] leading-4 font-medium text-white drop-shadow">
+                        {item.title}
+                      </span>
+                    ) : null}
+                  </button>
+                )
+              })
+            : null}
+        </div>
+
+        {!loading && apps.length === 0 ? (
+          <div className="mt-8 rounded-[24px] border border-white/18 bg-white/16 p-5 text-center shadow-[0_20px_60px_rgba(15,23,42,0.24)] backdrop-blur-xl">
+            <LayoutGrid className="mx-auto h-9 w-9 text-white/85" />
+            <div className="mt-3 text-[17px] font-semibold">Chưa có ứng dụng</div>
+            <button
+              type="button"
+              onClick={() => onOpenApp(currentWorkspaceId ? '/app-store' : '/platform/setup')}
+              className="mt-4 inline-flex h-10 items-center justify-center rounded-2xl bg-white px-5 text-[13px] font-semibold text-slate-950"
+            >
+              {currentWorkspaceId ? 'App Store' : 'Setup'}
+            </button>
+          </div>
+        ) : null}
+      </div>
+
+      <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
+        <DialogContent className="max-h-[92dvh] overflow-y-auto rounded-[24px] bg-white text-slate-950 sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>App settings</DialogTitle>
+            <DialogDescription>Layout và background mobile</DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-5">
+            <div>
+              <div className="mb-2 text-[13px] font-semibold text-slate-700">Lưới ứng dụng</div>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { value: 'comfortable' as const, label: 'Thoáng' },
+                  { value: 'compact' as const, label: 'Gọn' },
+                ].map((item) => (
+                  <button
+                    key={item.value}
+                    type="button"
+                    onClick={() =>
+                      setDraftSettings((current) => ({ ...current, layout: item.value }))
+                    }
+                    className={cn(
+                      'inline-flex h-11 items-center justify-center rounded-2xl border text-[13px] font-semibold transition',
+                      draftSettings.layout === item.value
+                        ? 'border-slate-950 bg-slate-950 text-white'
+                        : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50',
+                    )}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <div className="mb-2 text-[13px] font-semibold text-slate-700">Background</div>
+              <div className="grid grid-cols-3 gap-2">
+                {phoneWallpaperOptions.map((item) => (
+                  <button
+                    key={item.value}
+                    type="button"
+                    onClick={() =>
+                      setDraftSettings((current) => ({ ...current, wallpaper: item.value }))
+                    }
+                    className={cn(
+                      'rounded-2xl border p-1.5 text-left transition',
+                      draftSettings.wallpaper === item.value
+                        ? 'border-slate-950 bg-slate-950'
+                        : 'border-slate-200 bg-white hover:bg-slate-50',
+                    )}
+                  >
+                    <span className={cn('block h-14 rounded-xl', item.className)} />
+                    <span
+                      className={cn(
+                        'mt-1.5 block text-center text-[11px] font-semibold',
+                        draftSettings.wallpaper === item.value ? 'text-white' : 'text-slate-600',
+                      )}
+                    >
+                      {item.label}
+                    </span>
+                  </button>
+                ))}
+              </div>
+              <label className="mt-3 block">
+                <span className="mb-1.5 flex items-center gap-2 text-[13px] font-semibold text-slate-700">
+                  <ImageIcon className="h-4 w-4" />
+                  Ảnh nền
+                </span>
+                <Input
+                  value={draftSettings.backgroundImage}
+                  onChange={(event) =>
+                    setDraftSettings((current) => ({
+                      ...current,
+                      backgroundImage: event.target.value,
+                    }))
+                  }
+                  placeholder="https://..."
+                  className="h-11 rounded-2xl border-slate-200 bg-white px-3 text-[13px]"
+                />
+              </label>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              {[{ key: 'showLabels' as const, label: 'Tên app' }].map((item) => {
+                const checked = draftSettings[item.key]
+
+                return (
+                  <button
+                    key={item.key}
+                    type="button"
+                    onClick={() =>
+                      setDraftSettings((current) => ({
+                        ...current,
+                        [item.key]: !current[item.key],
+                      }))
+                    }
+                    className={cn(
+                      'inline-flex h-11 items-center justify-center gap-2 rounded-2xl border text-[13px] font-semibold transition',
+                      checked
+                        ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                        : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50',
+                    )}
+                  >
+                    {checked ? <Check className="h-4 w-4" /> : null}
+                    {item.label}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                resetMobileHomeSettings()
+                setDraftSettings(defaultMobileHomeSettings)
+              }}
+            >
+              Reset
+            </Button>
+            <Button type="button" variant="outline" onClick={() => setSettingsOpen(false)}>
+              Hủy
+            </Button>
+            <Button type="button" onClick={handleSaveSettings}>
+              Cập nhật
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </section>
+  )
+}
+
 export default function PlatformHomePage() {
   const navigate = useNavigate()
   const user = useAppStore((state) => state.user)
@@ -150,7 +496,9 @@ export default function PlatformHomePage() {
   const [apiHomeApps, setApiHomeApps] = useState<PlatformAppDto[]>([])
   const [loadingHomeApps, setLoadingHomeApps] = useState(true)
   const [query, setQuery] = useState('')
-  const [uninstallTarget, setUninstallTarget] = useState<{ code: string; name: string } | null>(null)
+  const [uninstallTarget, setUninstallTarget] = useState<{ code: string; name: string } | null>(
+    null,
+  )
 
   useEffect(() => {
     if (!user) return
@@ -247,11 +595,21 @@ export default function PlatformHomePage() {
   return (
     <PlatformLayout
       activeTab="home"
+      mobileShell="phone-home"
       headerSearchValue={query}
       onHeaderSearchChange={setQuery}
       headerSearchPlaceholder="Tìm kiếm ứng dụng..."
     >
-      <div className="w-full">
+      <MobileHomeScreen
+        apps={homeApps}
+        currentWorkspaceId={currentWorkspaceId}
+        isAdmin={isAdmin}
+        loading={loadingHomeApps}
+        userName={user.name}
+        onOpenApp={(path) => navigate(path)}
+      />
+
+      <div className="hidden w-full xl:block">
         <section>
           <div className="pt-1">
             <div className="text-[20px] leading-tight font-semibold tracking-tight text-slate-950 sm:text-[24px] xl:text-[34px]">
@@ -363,7 +721,10 @@ export default function PlatformHomePage() {
           </div>
         </section>
 
-        <Dialog open={Boolean(uninstallTarget)} onOpenChange={(open) => !open && setUninstallTarget(null)}>
+        <Dialog
+          open={Boolean(uninstallTarget)}
+          onOpenChange={(open) => !open && setUninstallTarget(null)}
+        >
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
               <DialogTitle>Gỡ cài đặt ứng dụng</DialogTitle>

@@ -1,4 +1,4 @@
-import { useEffect, useState, type ChangeEvent, type ReactNode } from 'react'
+import { type ChangeEvent, type ReactNode, useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   Bell,
@@ -21,13 +21,27 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import {
+  Sheet,
+  SheetClose,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from '@/components/ui/sheet'
+import { getPlatformApp, getWorkspaceTypeLabel } from '@/core/platform/registry'
 import { cn } from '@/lib/utils'
 import { useAppStore } from '@/store/useAppStore'
-import { getPlatformApp, getWorkspaceTypeLabel } from '@/core/platform/registry'
+
+import { type MobilePhoneActiveTab, MobilePhonePageFrame } from './MobilePhoneShell'
 
 type PlatformLayoutProps = {
   children: ReactNode
   activeTab: 'home' | 'app-store' | 'profile' | 'services'
+  mobileShell?: 'default' | 'phone' | 'phone-home' | 'phone-page'
+  mobileTitle?: string
+  mobileSubtitle?: string
   showHeader?: boolean
   headerSearchValue?: string
   headerSearchPlaceholder?: string
@@ -54,6 +68,9 @@ function getScopeText(user: ReturnType<typeof useAppStore.getState>['user']) {
 export function PlatformLayout({
   children,
   activeTab,
+  mobileShell = 'default',
+  mobileTitle,
+  mobileSubtitle,
   showHeader = true,
   headerSearchValue,
   headerSearchPlaceholder = 'Tìm kiếm ứng dụng...',
@@ -73,9 +90,12 @@ export function PlatformLayout({
   const accountType = user?.accountType ?? 'customer'
   const isCustomer = accountType === 'customer' && !user?.isSeedAdmin
   const isBusiness = !isCustomer
+  const isPhoneShell = mobileShell !== 'default'
+  const isPhonePageShell = mobileShell === 'phone-page'
   const roleLabel = getRoleLabel(user)
   const scopeText = getScopeText(user)
   const [headerSearchDraft, setHeaderSearchDraft] = useState(headerSearchValue ?? '')
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false)
   const installedCodes = currentWorkspaceId ? (workspaceAppMap[currentWorkspaceId] ?? []) : []
   const sidebarApps = installedCodes
     .map((code) => getPlatformApp(code))
@@ -122,10 +142,33 @@ export function PlatformLayout({
 
     setHeaderSearchDraft(value)
   }
+  const resolvedMobileTitle =
+    mobileTitle ??
+    (activeTab === 'app-store'
+      ? 'App Store'
+      : activeTab === 'profile'
+        ? 'Hồ sơ'
+        : activeTab === 'services'
+          ? 'Dịch vụ'
+          : 'SportHub')
+  const resolvedMobileSubtitle =
+    mobileSubtitle ??
+    (activeTab === 'app-store'
+      ? 'Ứng dụng'
+      : activeTab === 'profile'
+        ? 'Tài khoản'
+        : activeTab === 'services'
+          ? 'Khách hàng'
+          : 'Workspace')
 
   return (
-    <div className="h-screen overflow-hidden bg-[#f4f7fb] text-[14px] text-slate-900">
-      <div className="flex h-screen">
+    <div
+      className={cn(
+        'h-dvh overflow-hidden text-[14px] text-slate-900',
+        isPhoneShell ? 'overscroll-none bg-[#111827] xl:bg-[#f4f7fb]' : 'bg-[#f4f7fb]',
+      )}
+    >
+      <div className="flex h-dvh">
         <aside className="fixed inset-y-0 left-0 z-40 hidden w-[272px] shrink-0 flex-col overflow-y-auto border-r border-[#e5ebf5] bg-[#f4f7fb] xl:flex">
           <div className="px-8 pt-8 pb-6">
             <Link to={isCustomer ? '/services' : '/home'} className="flex items-center gap-3">
@@ -280,15 +323,198 @@ export function PlatformLayout({
           </div>
         </aside>
 
-        <main className="flex h-screen min-w-0 flex-1 flex-col overflow-y-auto bg-white xl:ml-[272px]">
-          <header className="sticky top-0 z-30 border-b border-[#e8edf5] bg-white px-4 py-4 shadow-[0_10px_30px_rgba(15,23,42,0.04)] xl:hidden">
+        <main
+          className={cn(
+            'flex h-dvh min-w-0 flex-1 flex-col overflow-y-auto xl:ml-[272px]',
+            isPhoneShell ? 'bg-transparent xl:bg-white' : 'bg-white',
+          )}
+        >
+          <header
+            className={cn(
+              'sticky top-0 z-30 border-b border-[#e8edf5] bg-white px-4 py-4 shadow-[0_10px_30px_rgba(15,23,42,0.04)] xl:hidden',
+              isPhoneShell && 'hidden',
+            )}
+          >
             <div className="flex items-center gap-3">
-              <button
-                type="button"
-                className="grid h-9 w-9 place-items-center rounded-full text-slate-700 transition hover:bg-slate-50"
-              >
-                <Menu className="h-5 w-5" />
-              </button>
+              <Sheet>
+                <SheetTrigger className="grid h-9 w-9 place-items-center rounded-full text-slate-700 transition hover:bg-slate-50">
+                  <Menu className="h-5 w-5" />
+                  <span className="sr-only">Mở menu</span>
+                </SheetTrigger>
+                <SheetContent
+                  side="left"
+                  className="w-[86vw] max-w-[340px] gap-0 overflow-y-auto border-r border-[#e5ebf5] bg-[#f4f7fb] p-0"
+                >
+                  <SheetHeader className="border-b border-[#e5ebf5] px-5 py-5 text-left">
+                    <SheetTitle className="flex items-center gap-3 text-[18px] font-semibold text-slate-950">
+                      <LogoMark className="h-8 w-8 text-[#2457f5]" title="SportHub" />
+                      SportHub
+                    </SheetTitle>
+                    <SheetDescription className="text-[13px] text-slate-500">
+                      {scopeText}
+                    </SheetDescription>
+                  </SheetHeader>
+
+                  <div className="space-y-5 px-4 py-5">
+                    <nav className="space-y-1">
+                      {navItems.map((item) => {
+                        const active = activeTab === item.key
+                        const badge = 'badge' in item ? item.badge : undefined
+
+                        return (
+                          <SheetClose
+                            key={`${item.key}-${item.to}`}
+                            render={
+                              <Link
+                                to={item.to}
+                                className={cn(
+                                  'flex items-center gap-3 rounded-[14px] px-4 py-3 text-[14px] font-medium transition',
+                                  active
+                                    ? 'bg-[#eaf1ff] text-[#2457f5]'
+                                    : 'text-slate-700 hover:bg-white hover:text-slate-950',
+                                )}
+                              />
+                            }
+                          >
+                            <item.icon className="h-5 w-5" />
+                            <span className="flex-1">{item.label}</span>
+                            {badge ? (
+                              <span className="grid h-5 min-w-5 place-items-center rounded-full bg-red-500 px-1 text-[10px] font-semibold text-white">
+                                {badge}
+                              </span>
+                            ) : null}
+                          </SheetClose>
+                        )
+                      })}
+                    </nav>
+
+                    {isBusiness ? (
+                      <div className="border-t border-[#e5ebf5] pt-5">
+                        <div className="px-2 text-[12px] font-semibold tracking-[0.08em] text-slate-500 uppercase">
+                          Workspace
+                        </div>
+                        {hasWorkspace ? (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger className="mt-3 flex w-full items-center justify-between rounded-[14px] bg-white px-3 py-3 text-left">
+                              <div className="min-w-0">
+                                <div className="truncate text-[14px] font-medium text-slate-900">
+                                  {workspace?.name}
+                                </div>
+                                <div className="truncate text-[12px] text-slate-500">
+                                  {workspace ? getWorkspaceTypeLabel(workspace.type) : ''} •{' '}
+                                  {workspace?.owner}
+                                </div>
+                              </div>
+                              <ChevronDown className="ml-3 h-4 w-4 shrink-0 text-slate-500" />
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="start" className="min-w-64 rounded-2xl p-2">
+                              {workspaces.map((item) => (
+                                <DropdownMenuItem
+                                  key={item.id}
+                                  className="cursor-pointer rounded-xl px-3 py-2"
+                                  onClick={() => setCurrentWorkspaceId(item.id)}
+                                >
+                                  <div className="w-full">
+                                    <div className="font-medium text-slate-900">{item.name}</div>
+                                    <div className="text-xs text-slate-500">
+                                      {getWorkspaceTypeLabel(item.type)} • {item.memberCount}{' '}
+                                      members
+                                    </div>
+                                  </div>
+                                </DropdownMenuItem>
+                              ))}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        ) : (
+                          <SheetClose
+                            render={
+                              <button
+                                type="button"
+                                onClick={() => navigate('/platform/setup')}
+                                className="mt-3 flex w-full items-center justify-between rounded-[14px] border border-dashed border-[#bfcdfd] px-3 py-3 text-left text-[13px] font-medium text-[#2457f5]"
+                              />
+                            }
+                          >
+                            Tạo workspace đầu tiên
+                          </SheetClose>
+                        )}
+                      </div>
+                    ) : null}
+
+                    {isBusiness ? (
+                      <div className="border-t border-[#e5ebf5] pt-5">
+                        <div className="px-2 text-[12px] font-semibold tracking-[0.08em] text-slate-500 uppercase">
+                          Ứng dụng
+                        </div>
+                        <div className="mt-3 space-y-1">
+                          {sidebarApps.length ? (
+                            sidebarApps.map((app) => (
+                              <SheetClose
+                                key={app.code}
+                                render={
+                                  <button
+                                    type="button"
+                                    onClick={() => navigate(app.openPath)}
+                                    className="flex w-full items-center gap-3 rounded-[14px] px-3 py-2.5 text-left transition hover:bg-white"
+                                  />
+                                }
+                              >
+                                <span
+                                  className={cn(
+                                    'grid h-9 w-9 shrink-0 place-items-center rounded-[12px] text-white',
+                                    app.code === 'team_badminton'
+                                      ? 'bg-[linear-gradient(135deg,#34c759,#12b76a)]'
+                                      : app.code === 'motorbike_shop'
+                                        ? 'bg-[linear-gradient(135deg,#ff922b,#ff5f57)]'
+                                        : 'bg-[linear-gradient(135deg,#6d5efc,#4d6cf8)]',
+                                  )}
+                                >
+                                  <app.icon className="h-4 w-4" />
+                                </span>
+                                <span className="min-w-0 flex-1 truncate text-[14px] font-medium text-slate-800">
+                                  {app.code === 'court_management'
+                                    ? 'Quản lý sân cầu'
+                                    : app.code === 'motorbike_shop'
+                                      ? 'Shop Mô tô'
+                                      : app.name}
+                                </span>
+                              </SheetClose>
+                            ))
+                          ) : (
+                            <SheetClose
+                              render={
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    navigate(hasWorkspace ? '/app-store' : '/platform/setup')
+                                  }
+                                  className="w-full rounded-[14px] border border-dashed border-[#bfcdfd] px-3 py-3 text-left text-[13px] font-medium text-[#2457f5]"
+                                />
+                              }
+                            >
+                              {hasWorkspace ? 'Cài app từ App Store' : 'Thiết lập workspace'}
+                            </SheetClose>
+                          )}
+                        </div>
+                      </div>
+                    ) : null}
+
+                    <div className="border-t border-[#e5ebf5] pt-5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          logout()
+                          navigate('/auth/login')
+                        }}
+                        className="flex w-full items-center gap-3 rounded-[14px] px-4 py-3 text-[14px] font-medium text-slate-700 transition hover:bg-white hover:text-slate-950"
+                      >
+                        <LogOut className="h-5 w-5" />
+                        Đăng xuất
+                      </button>
+                    </div>
+                  </div>
+                </SheetContent>
+              </Sheet>
 
               <Link
                 to={isCustomer ? '/services' : '/home'}
@@ -303,6 +529,7 @@ export function PlatformLayout({
               <div className="ml-auto flex items-center gap-2">
                 <button
                   type="button"
+                  onClick={() => setMobileSearchOpen((value) => !value)}
                   className="grid h-9 w-9 place-items-center rounded-full text-slate-600 transition hover:bg-slate-50"
                 >
                   <Search className="h-4 w-4" />
@@ -329,6 +556,23 @@ export function PlatformLayout({
                 </button>
               </div>
             </div>
+            {onHeaderSearchChange ? (
+              <label
+                className={cn(
+                  'mt-3 flex h-10 items-center rounded-xl border border-[#d7def7] bg-white px-3 transition',
+                  mobileSearchOpen ? 'flex' : 'hidden',
+                )}
+              >
+                <Search className="h-4 w-4 shrink-0 text-slate-500" />
+                <input
+                  value={resolvedSearchValue}
+                  onChange={handleHeaderSearchChange}
+                  placeholder={headerSearchPlaceholder}
+                  className="ml-3 w-full bg-transparent text-[13px] text-slate-700 outline-none placeholder:text-slate-400"
+                  autoFocus
+                />
+              </label>
+            ) : null}
           </header>
 
           {showHeader ? (
@@ -431,11 +675,35 @@ export function PlatformLayout({
             </header>
           ) : null}
 
-          <div className="flex-1 px-4 pt-5 pb-24 sm:px-6 xl:pt-5 xl:pb-8">{children}</div>
+          <div
+            className={cn(
+              'flex-1',
+              isPhoneShell
+                ? 'px-0 pt-0 pb-0 sm:px-0 xl:px-8 xl:pt-5 xl:pb-8'
+                : 'px-4 pt-5 pb-[calc(6.5rem+env(safe-area-inset-bottom))] sm:px-6 xl:pt-5 xl:pb-8',
+            )}
+          >
+            {isPhonePageShell ? (
+              <MobilePhonePageFrame
+                activeTab={activeTab as MobilePhoneActiveTab}
+                title={resolvedMobileTitle}
+                subtitle={resolvedMobileSubtitle}
+              >
+                {children}
+              </MobilePhonePageFrame>
+            ) : (
+              children
+            )}
+          </div>
         </main>
       </div>
 
-      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-[#e8edf5] bg-white px-3 py-2 shadow-[0_-10px_24px_rgba(15,23,42,0.04)] xl:hidden">
+      <nav
+        className={cn(
+          'fixed inset-x-0 bottom-0 z-40 border-t border-[#e8edf5] bg-white px-3 py-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] shadow-[0_-10px_24px_rgba(15,23,42,0.04)] xl:hidden',
+          isPhoneShell && 'hidden',
+        )}
+      >
         <div
           className={cn('grid gap-1', mobileNavItems.length === 2 ? 'grid-cols-2' : 'grid-cols-4')}
         >

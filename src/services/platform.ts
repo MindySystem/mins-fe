@@ -12,21 +12,22 @@ export type PlatformAppDto = {
   name: string
   description: string
   category: string
-  icon?: string
-  accent?: string
+  icon?: string | null
+  accent?: string | null
   rating?: string
   reviews_count?: number
   users_count?: string | number
   status?: PlatformAppStatus
   release_status?: PlatformAppReleaseStatus
-  open_path?: string
-  launch_path?: string
+  open_path?: string | null
+  launch_path?: string | null
   customer_entry_path?: string | null
   source_path?: string | null
   route_exists?: boolean
   source_status?: 'found' | 'missing' | 'unchecked' | string
   last_scanned_at?: string | null
   admin_only?: boolean
+  is_builtin?: boolean
 }
 
 export type PlatformWorkspaceDto = {
@@ -137,8 +138,9 @@ export type PlatformCustomerServicesDto = {
 
 function extractErrorMessage(err: unknown, fallback: string): string {
   if (err && typeof err === 'object' && 'response' in err) {
-    const response = (err as { response?: { data?: { message?: string; errors?: Record<string, string[]> } } })
-      .response
+    const response = (
+      err as { response?: { data?: { message?: string; errors?: Record<string, string[]> } } }
+    ).response
 
     if (response?.data?.message) return response.data.message
     if (response?.data?.errors) {
@@ -158,18 +160,28 @@ export const platformApi = {
     api.get<PlatformAppStoreDto, PlatformAppStoreDto>('/platform/app-store', { params }),
   appDetail: (slug: string) => api.get<PlatformAppDto, PlatformAppDto>(`/platform/apps/${slug}`),
   installApp: (workspaceId: string, appCode: string) =>
-    api.post<PlatformAppDto, PlatformAppDto>(`/platform/workspaces/${workspaceId}/apps/${appCode}/install`),
-  uninstallApp: (workspaceId: string, appCode: string) =>
-    api.delete<{ message: string }, { message: string }>(`/platform/workspaces/${workspaceId}/apps/${appCode}/uninstall`),
-  openApp: (workspaceId: string, appCode: string) =>
-    api.post<OpenPlatformAppDto, OpenPlatformAppDto>(`/platform/workspaces/${workspaceId}/apps/${appCode}/open`),
-  customerServices: () =>
-    api.get<PlatformCustomerServicesDto, PlatformCustomerServicesDto>('/platform/customer/services'),
-  adminApps: () => api.get<{ apps: PlatformAppDto[] }, { apps: PlatformAppDto[] }>('/platform/admin/apps'),
-  reloadApps: () =>
-    api.post<{ message: string; synced: PlatformAppDto[] }, { message: string; synced: PlatformAppDto[] }>(
-      '/platform/admin/apps/reload',
+    api.post<PlatformAppDto, PlatformAppDto>(
+      `/platform/workspaces/${workspaceId}/apps/${appCode}/install`,
     ),
+  uninstallApp: (workspaceId: string, appCode: string) =>
+    api.delete<{ message: string }, { message: string }>(
+      `/platform/workspaces/${workspaceId}/apps/${appCode}/uninstall`,
+    ),
+  openApp: (workspaceId: string, appCode: string) =>
+    api.post<OpenPlatformAppDto, OpenPlatformAppDto>(
+      `/platform/workspaces/${workspaceId}/apps/${appCode}/open`,
+    ),
+  customerServices: () =>
+    api.get<PlatformCustomerServicesDto, PlatformCustomerServicesDto>(
+      '/platform/customer/services',
+    ),
+  adminApps: () =>
+    api.get<{ apps: PlatformAppDto[] }, { apps: PlatformAppDto[] }>('/platform/admin/apps'),
+  reloadApps: () =>
+    api.post<
+      { message: string; synced: PlatformAppDto[]; apps?: PlatformAppDto[] },
+      { message: string; synced: PlatformAppDto[]; apps?: PlatformAppDto[] }
+    >('/platform/admin/apps/reload'),
   updateAdminApp: (app: string, data: Partial<PlatformAppDto>) =>
     api.patch<PlatformAppDto, PlatformAppDto>(`/platform/admin/apps/${app}`, data),
   async setup(data: PlatformSetupRequest): Promise<PlatformSetupResponse> {

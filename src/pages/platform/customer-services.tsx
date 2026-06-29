@@ -67,6 +67,9 @@ export default function PlatformCustomerServicesPage() {
   return (
     <PlatformLayout
       activeTab="services"
+      mobileShell="phone-page"
+      mobileTitle="Dịch vụ"
+      mobileSubtitle={isBusinessView ? 'Đang mở cho khách hàng' : 'Khả dụng'}
       headerSearchValue={query}
       onHeaderSearchChange={setQuery}
       headerSearchPlaceholder="Tìm dịch vụ, công ty..."
@@ -74,7 +77,7 @@ export default function PlatformCustomerServicesPage() {
       <PageTitle title="Dịch vụ" />
 
       <div className="flex w-full flex-col">
-        <header>
+        <header className="hidden xl:block">
           <div>
             <h1 className="text-[28px] font-semibold tracking-tight text-slate-950 sm:text-[34px]">
               Dịch vụ

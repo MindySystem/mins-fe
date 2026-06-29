@@ -18,16 +18,23 @@ import {
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { PlatformLayout } from '@/layouts/PlatformLayout'
-import { cn } from '@/lib/utils'
-import { platformApi, type PlatformAppDto } from '@/services/platform'
-import { useAppStore } from '@/store/useAppStore'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import {
   getPlatformApp,
   getPlatformAppBySlug,
   type PlatformAppCode,
 } from '@/core/platform/registry'
+import { PlatformLayout } from '@/layouts/PlatformLayout'
+import { cn } from '@/lib/utils'
+import { platformApi, type PlatformAppDto } from '@/services/platform'
+import { useAppStore } from '@/store/useAppStore'
 
 type AppDetailMeta = {
   displayName: string
@@ -335,9 +342,15 @@ export default function AppDetailPage() {
   }
 
   return (
-    <PlatformLayout activeTab="app-store" headerSearchPlaceholder="Tìm kiếm ứng dụng...">
+    <PlatformLayout
+      activeTab="app-store"
+      mobileShell="phone-page"
+      mobileTitle={meta.displayName}
+      mobileSubtitle="Chi tiết ứng dụng"
+      headerSearchPlaceholder="Tìm kiếm ứng dụng..."
+    >
       <div className="w-full">
-        <section className="flex items-center gap-4">
+        <section className="hidden items-center gap-4 xl:flex">
           <Link
             to="/app-store"
             className="inline-flex items-center gap-2 text-[15px] font-semibold text-slate-950 transition hover:text-[#2457f5]"

@@ -14,17 +14,30 @@ import {
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { PlatformLayout } from '@/layouts/PlatformLayout'
-import { cn } from '@/lib/utils'
-import { useAppStore } from '@/store/useAppStore'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import {
   getPlatformApp,
   type PlatformAppCode,
   type PlatformWorkspace,
   type WorkspaceType,
 } from '@/core/platform/registry'
+import { PlatformLayout } from '@/layouts/PlatformLayout'
+import { cn } from '@/lib/utils'
 import { platformApi, type PlatformAppDto, type PlatformWorkspaceDto } from '@/services/platform'
+import { useAppStore } from '@/store/useAppStore'
 
 const categoryFilters = [
   'Tất cả',
@@ -41,6 +54,8 @@ const categoryFilters = [
 
 const statusFilters = ['all', 'installed', 'available'] as const
 type StatusFilter = (typeof statusFilters)[number]
+const sortOptions = ['recommended', 'rating', 'name'] as const
+type SortOption = (typeof sortOptions)[number]
 
 type StoreApp = {
   code?: string
@@ -103,7 +118,9 @@ function toWorkspaceState(workspace: PlatformWorkspaceDto, ownerName: string): P
       : 'company'
 
   const status = (
-    workspace.status === 'active' || workspace.status === 'pending' || workspace.status === 'disabled'
+    workspace.status === 'active' ||
+    workspace.status === 'pending' ||
+    workspace.status === 'disabled'
       ? workspace.status
       : 'active'
   ) as 'active' | 'pending' | 'disabled'
@@ -160,7 +177,10 @@ export default function AppStorePage() {
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState<StatusFilter>('all')
   const [category, setCategory] = useState<(typeof categoryFilters)[number]>('Tất cả')
-  const [uninstallTarget, setUninstallTarget] = useState<{ code: string; name: string } | null>(null)
+  const [sort, setSort] = useState<SortOption>('recommended')
+  const [uninstallTarget, setUninstallTarget] = useState<{ code: string; name: string } | null>(
+    null,
+  )
 
   useEffect(() => {
     if (!user) return
@@ -220,7 +240,7 @@ export default function AppStorePage() {
   }, [apiApps])
 
   const filteredApps = useMemo(() => {
-    return appsWithStatus.filter((app) => {
+    const filtered = appsWithStatus.filter((app) => {
       const haystack = `${app.name} ${app.description} ${app.category}`.toLowerCase()
       const matchesQuery = haystack.includes(query.trim().toLowerCase())
       const matchesStatus =
@@ -228,7 +248,22 @@ export default function AppStorePage() {
       const matchesCategory = category === 'Tất cả' ? true : app.category === category
       return matchesQuery && matchesStatus && matchesCategory
     })
-  }, [appsWithStatus, category, query, status])
+
+    return [...filtered].sort((left, right) => {
+      if (sort === 'rating') {
+        return Number(right.rating) - Number(left.rating)
+      }
+
+      if (sort === 'name') {
+        return left.name.localeCompare(right.name, 'vi')
+      }
+
+      return Number(right.installed) - Number(left.installed)
+    })
+  }, [appsWithStatus, category, query, sort, status])
+
+  const sortLabel =
+    sort === 'rating' ? 'Đánh giá cao' : sort === 'name' ? 'Tên A-Z' : 'Phù hợp nhất'
 
   const installedCount = appsWithStatus.filter((app) => app.installed).length
   const availableCount = Math.max(appsWithStatus.length - installedCount, 0)
@@ -259,12 +294,15 @@ export default function AppStorePage() {
   return (
     <PlatformLayout
       activeTab="app-store"
+      mobileShell="phone-page"
+      mobileTitle="App Store"
+      mobileSubtitle="Ứng dụng"
       headerSearchValue={query}
       onHeaderSearchChange={setQuery}
       headerSearchPlaceholder="Tìm kiếm ứng dụng..."
     >
       <div className="w-full">
-        <section>
+        <section className="hidden xl:block">
           <div className="min-w-0">
             <h1 className="text-[28px] leading-tight font-semibold tracking-tight text-slate-950 sm:text-[32px] xl:text-[34px]">
               App Store
@@ -287,7 +325,7 @@ export default function AppStorePage() {
             <Search className="hidden h-4 w-4 shrink-0 text-slate-500 sm:block" />
           </label>
 
-          <div className="flex items-center gap-3 xl:hidden">
+          <div className="flex items-center gap-3 overflow-x-auto pb-1 xl:hidden">
             <button
               type="button"
               onClick={() => setCategory('Tất cả')}
@@ -300,14 +338,61 @@ export default function AppStorePage() {
             >
               Tất cả
             </button>
-            <button className="inline-flex h-10 shrink-0 items-center gap-2 rounded-xl border border-[#dbe2f2] bg-white px-4 text-[13px] font-medium text-slate-700">
-              Danh mục
-              <ChevronDown className="h-4 w-4" />
-            </button>
-            <button className="ml-auto inline-flex h-10 items-center gap-2 rounded-xl border border-[#dbe2f2] bg-white px-3 text-[13px] font-medium text-slate-700 sm:px-4">
-              <SlidersHorizontal className="h-4 w-4" />
-              <span className="hidden sm:inline">Sắp xếp</span>
-            </button>
+            <DropdownMenu>
+              <DropdownMenuTrigger className="inline-flex h-10 shrink-0 items-center gap-2 rounded-xl border border-[#dbe2f2] bg-white px-4 text-[13px] font-medium text-slate-700">
+                {category === 'Tất cả' ? 'Danh mục' : category}
+                <ChevronDown className="h-4 w-4" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="max-h-80 min-w-48 rounded-2xl p-2">
+                {categoryFilters.map((item) => (
+                  <DropdownMenuItem
+                    key={item}
+                    className={cn(
+                      'cursor-pointer rounded-xl px-3 py-2 text-[13px]',
+                      category === item ? 'bg-[#eef4ff] text-[#2457f5]' : '',
+                    )}
+                    onClick={() => setCategory(item)}
+                  >
+                    {item}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <DropdownMenu>
+              <DropdownMenuTrigger className="ml-auto inline-flex h-10 shrink-0 items-center gap-2 rounded-xl border border-[#dbe2f2] bg-white px-3 text-[13px] font-medium text-slate-700 sm:px-4">
+                <SlidersHorizontal className="h-4 w-4" />
+                <span>{sortLabel}</span>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="min-w-44 rounded-2xl p-2">
+                <DropdownMenuItem
+                  className={cn(
+                    'cursor-pointer rounded-xl px-3 py-2 text-[13px]',
+                    sort === 'recommended' ? 'bg-[#eef4ff] text-[#2457f5]' : '',
+                  )}
+                  onClick={() => setSort('recommended')}
+                >
+                  Phù hợp nhất
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className={cn(
+                    'cursor-pointer rounded-xl px-3 py-2 text-[13px]',
+                    sort === 'rating' ? 'bg-[#eef4ff] text-[#2457f5]' : '',
+                  )}
+                  onClick={() => setSort('rating')}
+                >
+                  Đánh giá cao
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className={cn(
+                    'cursor-pointer rounded-xl px-3 py-2 text-[13px]',
+                    sort === 'name' ? 'bg-[#eef4ff] text-[#2457f5]' : '',
+                  )}
+                  onClick={() => setSort('name')}
+                >
+                  Tên A-Z
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
 
           <div className="hidden xl:flex xl:items-center xl:justify-between xl:gap-4">
@@ -329,11 +414,42 @@ export default function AppStorePage() {
               ))}
             </div>
 
-            <button className="hidden h-12 shrink-0 items-center gap-2 rounded-xl border border-[#dbe2f2] bg-white px-5 text-[15px] font-medium text-slate-700 shadow-sm xl:inline-flex">
-              <SlidersHorizontal className="h-5 w-5" />
-              Sắp xếp: Mới nhất
-              <ChevronDown className="h-4 w-4" />
-            </button>
+            <DropdownMenu>
+              <DropdownMenuTrigger className="hidden h-12 shrink-0 items-center gap-2 rounded-xl border border-[#dbe2f2] bg-white px-5 text-[15px] font-medium text-slate-700 shadow-sm xl:inline-flex">
+                <SlidersHorizontal className="h-5 w-5" />
+                Sắp xếp: {sortLabel}
+                <ChevronDown className="h-4 w-4" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="min-w-48 rounded-2xl p-2">
+                <DropdownMenuItem
+                  className={cn(
+                    'cursor-pointer rounded-xl px-3 py-2',
+                    sort === 'recommended' ? 'bg-[#eef4ff] text-[#2457f5]' : '',
+                  )}
+                  onClick={() => setSort('recommended')}
+                >
+                  Phù hợp nhất
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className={cn(
+                    'cursor-pointer rounded-xl px-3 py-2',
+                    sort === 'rating' ? 'bg-[#eef4ff] text-[#2457f5]' : '',
+                  )}
+                  onClick={() => setSort('rating')}
+                >
+                  Đánh giá cao
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className={cn(
+                    'cursor-pointer rounded-xl px-3 py-2',
+                    sort === 'name' ? 'bg-[#eef4ff] text-[#2457f5]' : '',
+                  )}
+                  onClick={() => setSort('name')}
+                >
+                  Tên A-Z
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
 
           <div className="flex gap-7 overflow-x-auto border-b border-[#dbe2f2]">
@@ -380,16 +496,13 @@ export default function AppStorePage() {
               ))
             : null}
           {!loadingApps
-            ? filteredApps.map((app, index) => {
+            ? filteredApps.map((app) => {
                 const launchPath = getLaunchPath(app.code, app.launchPath)
 
                 return (
                   <article
                     key={app.name}
-                    className={cn(
-                      'flex flex-col rounded-[18px] border border-[#e1e7f4] bg-white p-3 shadow-[0_12px_35px_rgba(15,23,42,0.04)] sm:min-h-[268px] sm:p-4 xl:min-h-[300px] xl:rounded-[22px] xl:p-5',
-                      index > 3 ? 'hidden xl:flex' : '',
-                    )}
+                    className="flex flex-col rounded-[18px] border border-[#e1e7f4] bg-white p-3 shadow-[0_12px_35px_rgba(15,23,42,0.04)] sm:min-h-[268px] sm:p-4 xl:min-h-[300px] xl:rounded-[22px] xl:p-5"
                   >
                     <div className="flex items-start gap-3 sm:hidden">
                       <div
@@ -536,17 +649,17 @@ export default function AppStorePage() {
                             : 'Cài đặt'}
                       </button>
 
-                  {app.installed && app.code && app.code !== 'admin_portal' ? (
-                    <button
-                      type="button"
-                      onClick={() => setUninstallTarget({ code: app.code!, name: app.name })}
-                      className="inline-flex h-9 items-center justify-center gap-2 rounded-xl border border-red-200 bg-white px-3 text-[12px] font-medium text-red-600 transition hover:bg-red-50 sm:h-10 sm:px-4 sm:text-[13px] xl:h-11 xl:text-[14px]"
-                    >
-                      <Trash2 className="h-4 w-4 shrink-0" />
-                      <span className="hidden sm:inline">Gỡ</span>
-                    </button>
-                  ) : null}
-                </div>
+                      {app.installed && app.code && app.code !== 'admin_portal' ? (
+                        <button
+                          type="button"
+                          onClick={() => setUninstallTarget({ code: app.code!, name: app.name })}
+                          className="inline-flex h-9 items-center justify-center gap-2 rounded-xl border border-red-200 bg-white px-3 text-[12px] font-medium text-red-600 transition hover:bg-red-50 sm:h-10 sm:px-4 sm:text-[13px] xl:h-11 xl:text-[14px]"
+                        >
+                          <Trash2 className="h-4 w-4 shrink-0" />
+                          <span className="hidden sm:inline">Gỡ</span>
+                        </button>
+                      ) : null}
+                    </div>
                   </article>
                 )
               })
@@ -579,7 +692,10 @@ export default function AppStorePage() {
           ) : null}
         </section>
 
-        <Dialog open={Boolean(uninstallTarget)} onOpenChange={(open) => !open && setUninstallTarget(null)}>
+        <Dialog
+          open={Boolean(uninstallTarget)}
+          onOpenChange={(open) => !open && setUninstallTarget(null)}
+        >
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
               <DialogTitle>Gỡ cài đặt ứng dụng</DialogTitle>
@@ -610,10 +726,6 @@ export default function AppStorePage() {
 
         {!loadingApps && filteredApps.length > 0 ? (
           <>
-            <button className="mt-6 hidden h-11 w-full items-center justify-center rounded-xl border border-[#bfcdfd] bg-white text-[14px] font-medium text-[#2457f5] sm:inline-flex xl:hidden">
-              Xem thêm ứng dụng
-            </button>
-
             <section className="mt-8 hidden flex-col gap-4 text-[15px] text-slate-500 sm:flex-row sm:items-center sm:justify-between xl:mt-10 xl:flex">
               <div>
                 Hiển thị 1 - {Math.min(filteredApps.length, 8)} trong tổng số{' '}
