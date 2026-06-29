@@ -203,12 +203,19 @@ export const useAppStore = create<AppState>()(
 
           if (version < 2 && shouldResetLegacyContext(state.workspaces)) {
             return {
+              user: state.user ?? null,
               ...state,
               ...emptyPlatformContext,
             }
           }
 
-          return state
+          return {
+            user: state.user ?? null,
+            currentWorkspaceId: state.currentWorkspaceId ?? '',
+            workspaces: state.workspaces ?? [],
+            workspaceAppMap: state.workspaceAppMap ?? {},
+            workspaceUserAccessMap: state.workspaceUserAccessMap ?? {},
+          }
         },
         partialize: (state) => ({
           user: state.user,
