@@ -11,7 +11,10 @@ export const loginSchema = z.object({
 })
 
 export const registerSchema = z.object({
-  name: z.string().min(3, 'Tên cần ít nhất 3 ký tự').max(255),
+  accountType: z.enum(['customer', 'business'], {
+    message: 'Vui lòng chọn loại tài khoản',
+  }),
+  name: z.string().min(2, 'Tên cần ít nhất 2 ký tự').max(255),
   email: z.string().email('Email không đúng định dạng'),
   phone: z
     .string()
@@ -19,13 +22,11 @@ export const registerSchema = z.object({
     .max(20)
     .optional()
     .or(z.literal('')),
-  gender: z.enum(['male', 'female', 'other'], {
-    message: 'Vui lòng chọn giới tính',
-  }),
-  skillLevel: z.enum(['beginner', 'casual', 'intermediate', 'advanced'], {
-    message: 'Vui lòng chọn trình độ',
-  }),
   password: z.string().min(6, 'Mật khẩu cần ít nhất 6 ký tự'),
+  passwordConfirmation: z.string().min(6, 'Vui lòng xác nhận mật khẩu'),
+}).refine((data) => data.password === data.passwordConfirmation, {
+  message: 'Mật khẩu xác nhận không khớp',
+  path: ['passwordConfirmation'],
 })
 
 export type LoginRequest = z.infer<typeof loginSchema>

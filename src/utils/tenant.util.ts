@@ -24,7 +24,7 @@ const MOCK_TENANTS: Record<string, TenantConfig> = {
   },
   default: {
     id: 'default',
-    name: 'SportCenter OS',
+    name: 'Mindy OS',
     slug: 'default',
     primaryColor: '#0f172a', // Slate 900
     secondaryColor: '#334155', // Slate 700

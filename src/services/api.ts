@@ -1,8 +1,10 @@
 import axios, { AxiosError, type InternalAxiosRequestConfig } from 'axios'
 
+const productionApiBaseUrl = 'https://api.mindytran.io.vn/api'
+
 // Create an Axios instance with base configuration
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
+  baseURL: import.meta.env.VITE_API_BASE_URL || productionApiBaseUrl,
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',

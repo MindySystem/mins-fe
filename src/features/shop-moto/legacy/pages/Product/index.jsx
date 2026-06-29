@@ -103,9 +103,11 @@ export default function Product() {
     return (
         <div>
             { loadingPage && <div className="product-loading"><Loading /></div> }
-            <Modal show={temporaryPrice} setShow={setTemporaryPrice} title={'Giá xe lăn bánh'}>
-                <TemporaryPrice productDetail={productDetail} />
-            </Modal>
+            {temporaryPrice && (
+                <Modal show={temporaryPrice} setShow={setTemporaryPrice} title={'Giá xe lăn bánh'}>
+                    <TemporaryPrice productDetail={productDetail} />
+                </Modal>
+            )}
                 { productDetail && (
                     <div className="product">
                         <div className="product__title" style={{ backgroundImage: `url(${productDetail?.background_img})` }}>
@@ -198,7 +200,7 @@ export default function Product() {
                                         <div className="btn btn-deposit" onClick={() => handleAddToCart(productDetail._id)}>
                                             ĐẶT CỌC
                                         </div>
-                                        <div className="btn btn-compare                                                                                                                                                                 " onClick={() => setTemporaryPrice(true)}>
+                                        <div className="btn btn-compare" onClick={() => setTemporaryPrice(true)}>
                                             <span><BsCalculator className="icon" /></span>
                                             Giá tạm tính
                                         </div>

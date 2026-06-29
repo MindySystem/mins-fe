@@ -7,6 +7,7 @@ import numberWithCommas from 'utils/numberWithCommas';
 
 export default function TemporaryPrice(props) {
   const { productDetail } = props
+  const listedPrice = Number(productDetail?.price ?? 0)
   const [priceLicense, setPriceLicense] = useState(0)
   const [priceInsurance, setPriceInsurance] = useState(0)
   const [cityOptions, setCityOptions] = useState()
@@ -68,6 +69,16 @@ export default function TemporaryPrice(props) {
     fetchCity();
   }, []);
 
+  if (!productDetail) {
+    return (
+      <div className="temporary-price">
+        <div className="price-item">
+          <span className="name">Đang tải thông tin xe...</span>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="temporary-price">
       <div className='register-insurance'>
@@ -92,11 +103,11 @@ export default function TemporaryPrice(props) {
       </div>
       <div className='price-item'>
         <span className='name'>Giá niêm yết:</span>
-        <span className='price'>{numberWithCommas(productDetail.price)}₫</span>
+        <span className='price'>{numberWithCommas(listedPrice)}₫</span>
       </div>
       <div className='price-item'>
         <span className='name'>Phí trước bạ <b>(5%)</b>:</span>
-        <span className='price'>{numberWithCommas(productDetail ? (5 * productDetail.price / 100) : 0)}₫</span>
+        <span className='price'>{numberWithCommas(5 * listedPrice / 100)}₫</span>
       </div>
       <div className='price-item'>
         <span className='name'>Phí biển số xe <b>({citySelected.label})</b>:</span>
@@ -109,7 +120,7 @@ export default function TemporaryPrice(props) {
       <div className='price-total'>
         <span className='name'>Tổng Cộng: </span>
         <span className='price'>
-          {numberWithCommas(productDetail.price + (5 * productDetail.price / 100) + priceInsurance + priceLicense)}₫
+          {numberWithCommas(listedPrice + (5 * listedPrice / 100) + priceInsurance + priceLicense)}₫
         </span>
       </div>
     </div>

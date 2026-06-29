@@ -4,7 +4,7 @@ type LogoMarkProps = SVGProps<SVGSVGElement> & {
   title?: string
 }
 
-export function LogoMark({ title = 'SportCenter OS', ...props }: LogoMarkProps) {
+export function LogoMark({ title = 'Mindy OS', ...props }: LogoMarkProps) {
   return (
     <svg
       viewBox="0 0 64 64"

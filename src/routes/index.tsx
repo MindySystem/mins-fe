@@ -1,11 +1,10 @@
-import { createBrowserRouter, RouterProvider } from 'react-router-dom'
+import { createBrowserRouter, Navigate, RouterProvider } from 'react-router-dom'
 
-import { AdminRoute, ProtectedRoute } from '@/components/route-guards'
+import { AccountRoute, AdminRoute, AppAccessRoute, ProtectedRoute, SuperAdminRoute } from '@/components/route-guards'
 import { AuthLayout } from '@/layouts/AuthLayout'
 import SessionLayout from '@/layouts/SessionLayout'
 import ShopMotoLayout from '@/layouts/ShopMotoLayout'
 import LoginPage from '@/pages/auth/login'
-import ProfilePage from '@/pages/auth/profile'
 import RegisterPage from '@/pages/auth/register'
 import CourtPage from '@/pages/court'
 import Dashboard from '@/pages/dashboard'
@@ -13,6 +12,15 @@ import UnauthorizedPage from '@/pages/error/401'
 import NotFoundPage from '@/pages/error/404'
 import ServerErrorPage from '@/pages/error/500'
 import ComingSoonPage from '@/pages/error/coming-soon'
+import AdminPortalPage from '@/pages/platform/admin'
+import AppDetailPage from '@/pages/platform/app-detail'
+import AppStorePage from '@/pages/platform/app-store'
+import PlatformCustomerServicesPage from '@/pages/platform/customer-services'
+import ModulePage from '@/pages/platform/module'
+import PlatformHomePage from '@/pages/platform/home'
+import PlatformProfilePage from '@/pages/platform/profile'
+import PlatformSetupPage from '@/pages/platform/setup'
+import PlatformWelcomePage from '@/pages/platform/welcome'
 import ServicePage from '@/pages/service'
 import SessionDetailPage from '@/pages/sessions/detail'
 import SessionFormPage from '@/pages/sessions/form'
@@ -51,7 +59,137 @@ const router = createBrowserRouter([
     children: [
       {
         index: true,
-        element: <Dashboard />,
+        element: <PlatformWelcomePage />,
+      },
+      {
+        path: 'home',
+        element: (
+          <ProtectedRoute>
+            <AccountRoute allow={['business']}>
+              <PlatformHomePage />
+            </AccountRoute>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'app-store',
+        element: (
+          <ProtectedRoute>
+            <AccountRoute allow={['business']}>
+              <AppStorePage />
+            </AccountRoute>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'app-store/:appCode',
+        element: (
+          <ProtectedRoute>
+            <AccountRoute allow={['business']}>
+              <AppDetailPage />
+            </AccountRoute>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'profile',
+        element: (
+          <ProtectedRoute>
+            <PlatformProfilePage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'platform/welcome',
+        element: <Navigate to="/" replace />,
+      },
+      {
+        path: 'platform/setup',
+        element: (
+          <ProtectedRoute>
+            <AccountRoute allow={['business']}>
+              <PlatformSetupPage />
+            </AccountRoute>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'services',
+        element: (
+          <ProtectedRoute>
+            <PlatformCustomerServicesPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'apps/:appCode',
+        element: (
+          <ProtectedRoute>
+            <AccountRoute allow={['business']}>
+              <ModulePage />
+            </AccountRoute>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'admin',
+        element: (
+          <ProtectedRoute>
+            <SuperAdminRoute>
+              <AdminPortalPage />
+            </SuperAdminRoute>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'admin/users',
+        element: (
+          <ProtectedRoute>
+            <SuperAdminRoute>
+              <AdminPortalPage />
+            </SuperAdminRoute>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'admin/workspaces',
+        element: (
+          <ProtectedRoute>
+            <SuperAdminRoute>
+              <AdminPortalPage />
+            </SuperAdminRoute>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'admin/apps',
+        element: (
+          <ProtectedRoute>
+            <SuperAdminRoute>
+              <AdminPortalPage />
+            </SuperAdminRoute>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'admin/subscriptions',
+        element: (
+          <ProtectedRoute>
+            <SuperAdminRoute>
+              <AdminPortalPage />
+            </SuperAdminRoute>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'dashboard',
+        element: (
+          <ProtectedRoute>
+            <AccountRoute allow={['business']}>
+              <Dashboard />
+            </AccountRoute>
+          </ProtectedRoute>
+        ),
       },
       {
         path: 'shop',
@@ -88,7 +226,13 @@ const router = createBrowserRouter([
       },
       {
         path: 'shop-moto',
-        element: <ShopMotoLayout />,
+        element: (
+          <ProtectedRoute>
+            <AppAccessRoute appCode="motorbike_shop" allowCustomer>
+              <ShopMotoLayout />
+            </AppAccessRoute>
+          </ProtectedRoute>
+        ),
         children: [
           {
             index: true,
@@ -158,11 +302,23 @@ const router = createBrowserRouter([
       },
       {
         path: 'court/*',
-        element: <CourtPage />,
+        element: (
+          <ProtectedRoute>
+            <AppAccessRoute appCode="court_management" allowCustomer>
+              <CourtPage />
+            </AppAccessRoute>
+          </ProtectedRoute>
+        ),
       },
       {
         path: 'service/*',
-        element: <ServicePage />,
+        element: (
+          <ProtectedRoute>
+            <AppAccessRoute appCode="court_management">
+              <ServicePage />
+            </AppAccessRoute>
+          </ProtectedRoute>
+        ),
       },
       {
         path: 'portfolio',
@@ -193,50 +349,98 @@ const router = createBrowserRouter([
       </ProtectedRoute>
     ),
     children: [
-      { path: 'sessions', element: <SessionsListPage /> },
-      { path: 'sessions/admin', element: <AdminRoute><SessionAdminPage /></AdminRoute> },
-      { path: 'sessions/new', element: <AdminRoute><SessionFormPage /></AdminRoute> },
-      { path: 'sessions/:id', element: <SessionDetailPage /> },
+      {
+        path: 'sessions',
+        element: (
+          <AppAccessRoute appCode="team_badminton">
+            <SessionsListPage />
+          </AppAccessRoute>
+        ),
+      },
+      {
+        path: 'sessions/admin',
+        element: (
+          <AppAccessRoute appCode="team_badminton">
+            <AdminRoute>
+              <SessionAdminPage />
+            </AdminRoute>
+          </AppAccessRoute>
+        ),
+      },
+      {
+        path: 'sessions/new',
+        element: (
+          <AppAccessRoute appCode="team_badminton">
+            <AdminRoute>
+              <SessionFormPage />
+            </AdminRoute>
+          </AppAccessRoute>
+        ),
+      },
+      {
+        path: 'sessions/:id',
+        element: (
+          <AppAccessRoute appCode="team_badminton">
+            <SessionDetailPage />
+          </AppAccessRoute>
+        ),
+      },
       {
         path: 'sessions/:id/edit',
         element: (
-          <AdminRoute>
-            <SessionFormPage />
-          </AdminRoute>
+          <AppAccessRoute appCode="team_badminton">
+            <AdminRoute>
+              <SessionFormPage />
+            </AdminRoute>
+          </AppAccessRoute>
         ),
       },
       {
         path: 'sessions/:id/manage',
         element: (
-          <AdminRoute>
-            <SessionManagePage />
-          </AdminRoute>
+          <AppAccessRoute appCode="team_badminton">
+            <AdminRoute>
+              <SessionManagePage />
+            </AdminRoute>
+          </AppAccessRoute>
         ),
       },
-      { path: 'my-sessions', element: <MySessionsPage /> },
-      { path: 'profile', element: <ProfilePage /> },
+      {
+        path: 'my-sessions',
+        element: (
+          <AppAccessRoute appCode="team_badminton">
+            <MySessionsPage />
+          </AppAccessRoute>
+        ),
+      },
       {
         path: 'shop-moto-admin',
         element: (
-          <AdminRoute>
-            <ShopMotoAdminPage />
-          </AdminRoute>
+          <AppAccessRoute appCode="motorbike_shop">
+            <AdminRoute>
+              <ShopMotoAdminPage />
+            </AdminRoute>
+          </AppAccessRoute>
         ),
       },
       {
         path: 'shop-moto-admin/:section',
         element: (
-          <AdminRoute>
-            <ShopMotoAdminPage />
-          </AdminRoute>
+          <AppAccessRoute appCode="motorbike_shop">
+            <AdminRoute>
+              <ShopMotoAdminPage />
+            </AdminRoute>
+          </AppAccessRoute>
         ),
       },
       {
         path: 'shuttlecocks',
         element: (
-          <AdminRoute>
-            <ShuttlecocksPage />
-          </AdminRoute>
+          <AppAccessRoute appCode="court_management">
+            <AdminRoute>
+              <ShuttlecocksPage />
+            </AdminRoute>
+          </AppAccessRoute>
         ),
       },
     ],

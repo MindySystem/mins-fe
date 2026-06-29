@@ -12,7 +12,7 @@ export function AuthLayout() {
             <span className="text-3xl">🏸</span>
           </span>
           <span className="hidden whitespace-nowrap lg:block">
-            SportCenter <span className="text-emerald-400">OS</span>
+            Mindy <span className="text-emerald-400">OS</span>
           </span>
         </p>
       </Link>

@@ -72,7 +72,7 @@ export function ErrorLayout({ code, title, description, icon }: Props) {
 
       {/* Footer Branding */}
       <div className="absolute bottom-8 left-1/2 -translate-x-1/2 text-[10px] font-black tracking-widest text-slate-400 uppercase opacity-30">
-        SportCenter OS • Premium Experience
+        Mindy OS • Premium Experience
       </div>
     </div>
   )

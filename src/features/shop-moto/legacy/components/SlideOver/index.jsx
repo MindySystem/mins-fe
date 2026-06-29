@@ -1,6 +1,6 @@
 
 import { Fragment } from 'react'
-import { Dialog, Transition } from '@headlessui/react'
+import { Dialog, DialogBackdrop, Transition } from '@headlessui/react'
 import './slide-over.scss'
 
 export default function SlideOver(props) {
@@ -19,7 +19,7 @@ export default function SlideOver(props) {
             leaveFrom="opacity-100"
             leaveTo="opacity-0"
           >
-            <Dialog.Overlay className="dialog-overlay" />
+            <DialogBackdrop className="dialog-overlay" />
           </Transition.Child>
 
           <div className="dialog-container">

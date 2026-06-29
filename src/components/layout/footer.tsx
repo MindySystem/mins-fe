@@ -9,7 +9,7 @@ export default function Footer() {
             </div>
             <div>
               <p className="text-sm font-semibold text-slate-500">Sport Commerce Platform</p>
-              <h4 className="text-lg font-bold text-slate-950">SportCenter OS</h4>
+              <h4 className="text-lg font-bold text-slate-950">Mindy OS</h4>
             </div>
           </div>
           <p className="mt-4 text-sm leading-6 text-slate-600">
@@ -49,7 +49,7 @@ export default function Footer() {
       </div>
 
       <div className="border-t border-slate-200 py-3 text-center text-sm text-slate-500">
-        © {new Date().getFullYear()} SportCenter OS. All rights reserved.
+        © {new Date().getFullYear()} Mindy OS. All rights reserved.
       </div>
     </footer>
   )

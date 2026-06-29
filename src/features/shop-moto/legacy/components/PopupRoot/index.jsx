@@ -1,6 +1,6 @@
 import React from 'react';
 import { Fragment, useRef } from 'react'
-import { Dialog, Transition } from '@headlessui/react'
+import { Dialog, DialogBackdrop, Transition } from '@headlessui/react'
 
 export default function PopupRoot(props) {
   const { show, setShow } = props
@@ -20,7 +20,7 @@ export default function PopupRoot(props) {
             leaveFrom="opacity-100"
             leaveTo="opacity-0"
           >
-            <Dialog.Overlay className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" />
+            <DialogBackdrop className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" />
           </Transition.Child>
 
           {/* This element is to trick the browser into centering the modal contents. */}

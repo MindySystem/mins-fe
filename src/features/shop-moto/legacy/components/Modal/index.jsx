@@ -1,5 +1,5 @@
 import React from 'react';
-import { Dialog, Transition } from '@headlessui/react'
+import { Dialog, DialogBackdrop, Transition } from '@headlessui/react'
 import { Fragment } from 'react'
 import './modal.scss'
 import { AiOutlineCloseCircle } from 'react-icons/ai'
@@ -20,7 +20,7 @@ export default function Modal(props) {
             leaveFrom="opacity-100"
             leaveTo="opacity-0"
           >
-            <Dialog.Overlay className="dialog-ovelay" />
+            <DialogBackdrop className="dialog-ovelay" />
           </Transition.Child>
 
           {/* This element is to trick the browser into centering the modal contents. */}
