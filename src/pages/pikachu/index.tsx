@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import type { LucideIcon } from 'lucide-react'
 import {
@@ -31,6 +31,7 @@ import {
 } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
+import { pikachuService } from '@/services/pikachu.service'
 
 type TileSymbol = {
   id: string
@@ -102,6 +103,7 @@ type LevelConfig = {
   shortTitle: string
   arrangement: ArrangementId
 }
+type GameOverSyncState = 'idle' | 'saving' | 'saved' | 'error'
 
 type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>
@@ -113,6 +115,7 @@ type BeforeInstallPromptEvent = Event & {
 
 const HIGH_SCORE_KEY = 'mins-pikachu-connect-high-score'
 const HIGHEST_LEVEL_KEY = 'mins-pikachu-connect-highest-level'
+const PLAYER_NAME_KEY = 'mins-pikachu-player-name'
 const DEFAULT_DIFFICULTY_ID: DifficultyId = 'classic'
 const PIKACHU_IMAGE_COUNT = 36
 const PIKACHU_IMAGE_REPEAT = 4
@@ -676,6 +679,18 @@ function writeHighestLevel(level: number) {
   window.localStorage.setItem(HIGHEST_LEVEL_KEY, String(level))
 }
 
+function readPlayerName() {
+  if (typeof window === 'undefined') return ''
+
+  return (window.localStorage.getItem(PLAYER_NAME_KEY) || '').trim()
+}
+
+function writePlayerName(playerName: string) {
+  if (typeof window === 'undefined') return
+
+  window.localStorage.setItem(PLAYER_NAME_KEY, playerName.trim())
+}
+
 export default function PikachuPage() {
   const defaultDifficulty = getDifficulty(DEFAULT_DIFFICULTY_ID)
   const [difficultyId, setDifficultyId] = useState<DifficultyId>(DEFAULT_DIFFICULTY_ID)
@@ -683,6 +698,9 @@ export default function PikachuPage() {
   const [board, setBoard] = useState(() => createBoard(defaultDifficulty))
   const [selected, setSelected] = useState<Position | null>(null)
   const [hint, setHint] = useState<MatchPair | null>(null)
+  const [playerName, setPlayerName] = useState(readPlayerName)
+  const [playerNameDraft, setPlayerNameDraft] = useState(readPlayerName)
+  const [showPlayerNameDialog, setShowPlayerNameDialog] = useState(() => !readPlayerName())
   const [score, setScore] = useState(0)
   const [highScore, setHighScore] = useState(readHighScore)
   const [highestLevel, setHighestLevel] = useState(readHighestLevel)
@@ -695,9 +713,11 @@ export default function PikachuPage() {
   const [isRunning, setIsRunning] = useState(false)
   const [result, setResult] = useState<GameResult>('playing')
   const [status, setStatus] = useState('Nhan Bat dau de choi')
+  const [gameOverSyncState, setGameOverSyncState] = useState<GameOverSyncState>('idle')
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null)
   const [isInstalled, setIsInstalled] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
+  const hasSavedGameOverRef = useRef(false)
   const difficulty = useMemo(() => getDifficulty(difficultyId), [difficultyId])
   const currentLevelConfig = useMemo(() => getLevelConfig(currentLevel), [currentLevel])
   const remainingTiles = useMemo(() => countTiles(board), [board])
@@ -719,6 +739,7 @@ export default function PikachuPage() {
   const showStartOverlay = result === 'playing' && !hasStarted
   const showPauseOverlay = isPaused
   const shouldHideBoard = showStartOverlay || showPauseOverlay
+  const showPlayerIdentityDialog = showPlayerNameDialog || !playerName
 
   const resetGame = useCallback((nextDifficultyId = difficultyId, autoStart = hasStarted) => {
     const nextDifficulty = getDifficulty(nextDifficultyId)
@@ -737,11 +758,34 @@ export default function PikachuPage() {
     setHasStarted(autoStart)
     setIsRunning(autoStart)
     setResult('playing')
-    setStatus(autoStart ? `Man 1: ${getLevelConfig(1).title}` : 'Chưa bắt đầu')
+    setGameOverSyncState('idle')
+    hasSavedGameOverRef.current = false
+    setStatus(autoStart ? `Màn 1: ${getLevelConfig(1).title}` : 'Nhấn Bắt đầu để chơi')
   }, [difficultyId, hasStarted])
+
+  const handleSavePlayerName = useCallback(() => {
+    const nextPlayerName = playerNameDraft.trim()
+
+    if (!nextPlayerName) {
+      setStatus('Vui lòng nhập tên người chơi')
+      return
+    }
+
+    writePlayerName(nextPlayerName)
+    setPlayerName(nextPlayerName)
+    setPlayerNameDraft(nextPlayerName)
+    setShowPlayerNameDialog(false)
+    setStatus(hasStarted ? 'Đã cập nhật tên người chơi' : 'Nhấn Bắt đầu để chơi')
+  }, [hasStarted, playerNameDraft])
 
   const handleToggleGameRunning = useCallback(() => {
     if (result !== 'playing') return
+
+    if (!playerName) {
+      setShowPlayerNameDialog(true)
+      setStatus('Vui lòng nhập tên người chơi')
+      return
+    }
 
     if (!hasStarted) {
       setHasStarted(true)
@@ -758,7 +802,7 @@ export default function PikachuPage() {
 
     setIsRunning(true)
     setStatus('Tiếp tục chơi')
-  }, [currentLevel, currentLevelConfig.title, hasStarted, isRunning, result])
+  }, [currentLevel, currentLevelConfig.title, hasStarted, isRunning, playerName, result])
 
   const penalize = useCallback((message: string) => {
     setStatus(message)
@@ -942,6 +986,57 @@ export default function PikachuPage() {
   }, [currentLevel, highestLevel])
 
   useEffect(() => {
+    if (playerName) {
+      setPlayerNameDraft(playerName)
+    }
+  }, [playerName])
+
+  useEffect(() => {
+    if (result === 'playing' || !hasStarted || !playerName || hasSavedGameOverRef.current) return
+
+    hasSavedGameOverRef.current = true
+    setGameOverSyncState('saving')
+
+    void pikachuService.saveGame({
+      player_name: playerName,
+      score,
+      level_reached: currentLevel,
+      highest_level: Math.max(highestLevel, currentLevel),
+      result,
+      time_left: timeLeft,
+      difficulty_id: difficultyId,
+      is_standalone: isStandaloneDisplayMode(),
+      stats: {
+        combo,
+        mistakes,
+        hints_left: hintsLeft,
+        shuffles_left: shufflesLeft,
+        remaining_tiles: remainingTiles,
+      },
+    })
+      .then(() => {
+        setGameOverSyncState('saved')
+      })
+      .catch(() => {
+        setGameOverSyncState('error')
+      })
+  }, [
+    combo,
+    currentLevel,
+    difficultyId,
+    hasStarted,
+    highestLevel,
+    hintsLeft,
+    mistakes,
+    playerName,
+    remainingTiles,
+    result,
+    score,
+    shufflesLeft,
+    timeLeft,
+  ])
+
+  useEffect(() => {
     if (!isRunning || result !== 'playing') return undefined
 
     const timer = window.setInterval(() => {
@@ -994,6 +1089,9 @@ export default function PikachuPage() {
       setInstallPrompt(null)
       setIsInstalled(true)
       setStatus('Da cai dat game ra man hinh chinh')
+      if (!readPlayerName()) {
+        setShowPlayerNameDialog(true)
+      }
     }
 
     syncInstalledState()
@@ -1126,6 +1224,46 @@ export default function PikachuPage() {
           disabled={isInstalled}
         />
       </div>
+      {showPlayerIdentityDialog ? (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-[#160703]/78 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-lg border border-[#ffdd2f]/40 bg-[#351609] p-5 shadow-xl">
+            <div className="text-center">
+              <div className="text-xl font-bold text-[#ffdd2f]">Tên người chơi</div>
+              <div className="mt-2 text-sm font-medium text-[#ffd24a]/85">
+                Nhập tên để lưu kết quả mỗi khi game over.
+              </div>
+            </div>
+            <div className="mt-4">
+              <label className="text-xs font-black uppercase text-[#ffc84a]/70" htmlFor="pikachu-player-name">
+                Người chơi
+              </label>
+              <input
+                id="pikachu-player-name"
+                type="text"
+                value={playerNameDraft}
+                maxLength={40}
+                autoFocus
+                className="mt-2 h-11 w-full rounded-md border border-[#995018]/80 bg-[#2a0e05]/80 px-3 text-sm font-semibold text-[#fff1a6] outline-none transition focus:border-[#ffdd2f]"
+                placeholder="Ví dụ: Minh Tri"
+                onChange={(event) => setPlayerNameDraft(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    handleSavePlayerName()
+                  }
+                }}
+              />
+            </div>
+            <button
+              type="button"
+              className="mt-4 inline-flex h-10 w-full items-center justify-center gap-2 rounded-md bg-[#f97316] px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[#ea580c]"
+              onClick={handleSavePlayerName}
+            >
+              <Play className="h-4 w-4" aria-hidden="true" />
+              Lưu tên người chơi
+            </button>
+          </div>
+        </div>
+      ) : null}
       <div className="mx-auto flex min-h-dvh flex-col bg-[radial-gradient(circle_at_50%_0%,rgba(138,65,20,0.82),rgba(64,24,10,0.95)_48%,#180703_100%)]">
         <div className="pikachu-game-frame relative flex flex-col overflow-hidden border border-[#713613] bg-[#351609] shadow-2xl">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(138,65,20,0.82),rgba(64,24,10,0.95)_48%,#180703_100%)]" />
@@ -1141,6 +1279,7 @@ export default function PikachuPage() {
               <div className="flex flex-wrap justify-start gap-2 text-sm font-bold py-2">
                 <ArcadeButton
                   icon={Download}
+                  label={isInstalled ? 'Da cai' : 'Cai app'}
                   onClick={() => {
                     void handleInstallApp()
                   }}
@@ -1148,11 +1287,13 @@ export default function PikachuPage() {
                 />
                 <ArcadeButton
                   icon={Lightbulb}
+                  label={`Goi y (${hintsLeft})`}
                   onClick={handleHint}
                   disabled={!canInteract || hintsLeft <= 0}
                 />
                 <ArcadeButton
                   icon={Shuffle}
+                  label={`Xao (${shufflesLeft})`}
                   onClick={handleShuffle}
                   disabled={!canInteract || shufflesLeft <= 0}
                 />
@@ -1162,7 +1303,7 @@ export default function PikachuPage() {
                   icon={hasStarted && isRunning ? Pause : Play}
                   onClick={handleToggleGameRunning}
                   disabled={result !== 'playing'}
-                  label="Tạm dừng"
+                  label={!hasStarted ? 'Bat dau' : isRunning ? 'Tam dung' : 'Tiep tuc'}
                 />
               </div>
               <div className="pb-2">
@@ -1179,10 +1320,14 @@ export default function PikachuPage() {
               </div>
 
               <div className="grid grid-cols-1 text-[11px] pt-5 pb-2">
+                <SideStat label="Tên" value={playerName || 'Chua dat'} />
                 <SideStat label="Còn lại" value={String(remainingTiles)} />
                 <SideStat label="Combo" value={String(combo)} />
                 <SideStat label="Sai" value={String(mistakes)} />
                 <SideStat label="Luot Doi" value={String(shufflesLeft)} />
+                <SideStat label="Diem" value={score.toLocaleString('vi-VN')} />
+                <SideStat label="Diem max" value={highScore.toLocaleString('vi-VN')} />
+                <SideStat label="Man max" value={String(highestLevel)} />
               </div>
               <ArcadeButton icon={RefreshCw} onClick={handleReload} label="Reload Game" />
             </aside>
@@ -1306,13 +1451,25 @@ export default function PikachuPage() {
                         )}
                       </div>
                       <h2 className="text-xl font-bold text-[#ffdd2f]">
-                        {result === 'won' ? 'Hoan thanh' : 'Ket thuc'}
+                        {result === 'won' ? 'Hoàn thành' : 'Game Over'}
                       </h2>
                       <p className="mt-2 text-sm font-medium text-[#ffd24a]/85">
-                        Điể<mark></mark>: {score.toLocaleString('vi-VN')} | Ky luc: {highScore.toLocaleString('vi-VN')}
+                        Người chơi: {playerName || 'Chua dat ten'}
                       </p>
                       <p className="mt-1 text-sm font-medium text-[#ffd24a]/85">
-                        Màn Cao Nhất: {highestLevel}
+                        Điểm: {score.toLocaleString('vi-VN')} | Kỷ lục: {highScore.toLocaleString('vi-VN')}
+                      </p>
+                      <p className="mt-1 text-sm font-medium text-[#ffd24a]/85">
+                        Màn cao nhất: {highestLevel}
+                      </p>
+                      <p className="mt-1 text-xs font-bold text-[#ffc84a]/80">
+                        {gameOverSyncState === 'saving'
+                          ? 'Dang luu ket qua...'
+                          : gameOverSyncState === 'saved'
+                            ? 'Da luu ket qua vao he thong'
+                            : gameOverSyncState === 'error'
+                              ? 'Khong luu duoc ket qua, vui long thu lai o van sau'
+                              : ''}
                       </p>
                       <button
                         type="button"
