@@ -21,6 +21,7 @@ import PlatformHomePage from '@/pages/platform/home'
 import PlatformProfilePage from '@/pages/platform/profile'
 import PlatformSetupPage from '@/pages/platform/setup'
 import PlatformWelcomePage from '@/pages/platform/welcome'
+import PikachuPage from '@/pages/pikachu'
 import ServicePage from '@/pages/service'
 import SessionDetailPage from '@/pages/sessions/detail'
 import SessionFormPage from '@/pages/sessions/form'
@@ -323,6 +324,10 @@ const router = createBrowserRouter([
       {
         path: 'portfolio',
         element: <PortfolioPage />,
+      },
+      {
+        path: 'pikachu',
+        element: <PikachuPage />,
       },
     ],
   },

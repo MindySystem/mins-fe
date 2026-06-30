@@ -1,0 +1,43 @@
+{
+  "id": "/pikachu",
+  "name": "Pikachu Co Dien",
+  "short_name": "MPikachu",
+  "description": "Game noi hinh Pikachu co dien 16x9 voi 9 man choi, toi uu cho mobile ngang va co the cai dat nhu mot app.",
+  "lang": "vi",
+  "dir": "ltr",
+  "start_url": "/pikachu",
+  "scope": "/pikachu",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#170703",
+  "theme_color": "#351609",
+  "categories": ["games", "entertainment"],
+  "prefer_related_applications": false,
+  "icons": [
+    {
+      "src": "/pwa/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/pwa/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Van moi",
+      "short_name": "Choi ngay",
+      "description": "Mo nhanh game Pikachu co dien",
+      "url": "/pikachu",
+      "icons": [
+        {
+          "src": "/pwa/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    }
+  ]
+}
