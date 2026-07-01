@@ -1,13 +1,18 @@
-const SHELL_CACHE = 'pikachu-shell-v1'
-const RUNTIME_CACHE = 'pikachu-runtime-v1'
+const PWA_ASSET_VERSION = '20260701-safe-area'
+const SHELL_CACHE = `pikachu-shell-${PWA_ASSET_VERSION}`
+const RUNTIME_CACHE = `pikachu-runtime-${PWA_ASSET_VERSION}`
+const withPwaVersion = (path) => `${path}?v=${PWA_ASSET_VERSION}`
 const PIKACHU_ASSETS = Array.from({ length: 36 }, (_, index) => `/images/pikachu/pieces${index + 1}.png`)
 const CORE_ASSETS = [
   '/',
   '/index.html',
-  '/manifest.webmanifest',
-  '/pwa/icon-192.png',
-  '/pwa/icon-512.png',
-  '/pwa/apple-touch-icon.png',
+  withPwaVersion('/manifest.webmanifest'),
+  '/pwa/icon-192-20260701.png',
+  '/pwa/icon-512-20260701.png',
+  '/pwa/apple-touch-icon-20260701.png',
+  '/pwa/screenshot-wide-20260701.png',
+  '/pwa/screenshot-mobile-20260701.png',
+  '/images/pikachu/fantastic-pokemon-home.webp',
   ...PIKACHU_ASSETS,
 ]
 
@@ -69,6 +74,22 @@ async function cacheFirstAsset(request) {
   return response
 }
 
+async function networkFirstPwaAsset(request) {
+  const cache = await caches.open(SHELL_CACHE)
+
+  try {
+    const response = await fetch(request)
+
+    if (response.ok) {
+      void cache.put(request, response.clone())
+    }
+
+    return response
+  } catch (error) {
+    return (await cache.match(request)) || Response.error()
+  }
+}
+
 self.addEventListener('fetch', (event) => {
   const { request } = event
 
@@ -80,6 +101,11 @@ self.addEventListener('fetch', (event) => {
 
   if (request.mode === 'navigate') {
     event.respondWith(networkFirstPage(request))
+    return
+  }
+
+  if (url.pathname === '/manifest.webmanifest' || url.pathname.startsWith('/pwa/')) {
+    event.respondWith(networkFirstPwaAsset(request))
     return
   }
 

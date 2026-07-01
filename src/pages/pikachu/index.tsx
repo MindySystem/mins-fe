@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { CSSProperties } from 'react'
 import type { LucideIcon } from 'lucide-react'
 import {
   Apple,
@@ -14,6 +13,7 @@ import {
   Gem,
   Grape,
   Heart,
+  House,
   IceCreamBowl,
   Leaf,
   Lightbulb,
@@ -30,8 +30,7 @@ import {
   Zap,
 } from 'lucide-react'
 
-import { cn } from '@/lib/utils'
-import { pikachuService } from '@/services/pikachu.service'
+import { pikachuService, type PikachuLeaderboardEntry } from '@/services/pikachu.service'
 
 type TileSymbol = {
   id: string
@@ -103,7 +102,6 @@ type LevelConfig = {
   shortTitle: string
   arrangement: ArrangementId
 }
-type GameOverSyncState = 'idle' | 'saving' | 'saved' | 'error'
 
 type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>
@@ -701,6 +699,8 @@ export default function PikachuPage() {
   const [playerName, setPlayerName] = useState(readPlayerName)
   const [playerNameDraft, setPlayerNameDraft] = useState(readPlayerName)
   const [showPlayerNameDialog, setShowPlayerNameDialog] = useState(() => !readPlayerName())
+  const [showNoPairsModal, setShowNoPairsModal] = useState(false)
+  const [completedLevel, setCompletedLevel] = useState<number | null>(null)
   const [score, setScore] = useState(0)
   const [highScore, setHighScore] = useState(readHighScore)
   const [highestLevel, setHighestLevel] = useState(readHighestLevel)
@@ -712,15 +712,18 @@ export default function PikachuPage() {
   const [hasStarted, setHasStarted] = useState(false)
   const [isRunning, setIsRunning] = useState(false)
   const [result, setResult] = useState<GameResult>('playing')
-  const [status, setStatus] = useState('Nhan Bat dau de choi')
-  const [gameOverSyncState, setGameOverSyncState] = useState<GameOverSyncState>('idle')
+  const [status, setStatus] = useState('Bắt đầu chơi')
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null)
   const [isInstalled, setIsInstalled] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
+  const [leaderboard, setLeaderboard] = useState<PikachuLeaderboardEntry[]>([])
+  const [isLeaderboardLoading, setIsLeaderboardLoading] = useState(false)
+  const [leaderboardError, setLeaderboardError] = useState<string | null>(null)
   const hasSavedGameOverRef = useRef(false)
   const difficulty = useMemo(() => getDifficulty(difficultyId), [difficultyId])
   const currentLevelConfig = useMemo(() => getLevelConfig(currentLevel), [currentLevel])
   const remainingTiles = useMemo(() => countTiles(board), [board])
+
   const timeProgress = Math.max(0, Math.min(100, (timeLeft / difficulty.timeLimit) * 100))
   const playablePairs = useMemo(() => findPlayablePairs(board), [board])
   const playablePairCount = playablePairs.length
@@ -735,11 +738,29 @@ export default function PikachuPage() {
   }, [playablePairs])
   const needsShuffle = remainingTiles > 0 && playablePairCount === 0
   const canInteract = hasStarted && result === 'playing' && isRunning
-  const isPaused = hasStarted && result === 'playing' && !isRunning
+  const isLevelCompleteWaiting = completedLevel !== null
+  const isPaused = hasStarted && result === 'playing' && !isRunning && !isLevelCompleteWaiting
   const showStartOverlay = result === 'playing' && !hasStarted
   const showPauseOverlay = isPaused
-  const shouldHideBoard = showStartOverlay || showPauseOverlay
+  const shouldHideBoard = showStartOverlay || showPauseOverlay || isLevelCompleteWaiting
   const showPlayerIdentityDialog = showPlayerNameDialog || !playerName
+
+  const loadLeaderboard = useCallback(() => {
+    setIsLeaderboardLoading(true)
+    setLeaderboardError(null)
+
+    void pikachuService
+      .getLeaderboard()
+      .then((response) => {
+        setLeaderboard(response.data.slice(0, 10))
+      })
+      .catch(() => {
+        setLeaderboardError('Không tải được bảng xếp hạng')
+      })
+      .finally(() => {
+        setIsLeaderboardLoading(false)
+      })
+  }, [])
 
   const resetGame = useCallback((nextDifficultyId = difficultyId, autoStart = hasStarted) => {
     const nextDifficulty = getDifficulty(nextDifficultyId)
@@ -758,7 +779,8 @@ export default function PikachuPage() {
     setHasStarted(autoStart)
     setIsRunning(autoStart)
     setResult('playing')
-    setGameOverSyncState('idle')
+    setShowNoPairsModal(false)
+    setCompletedLevel(null)
     hasSavedGameOverRef.current = false
     setStatus(autoStart ? `Màn 1: ${getLevelConfig(1).title}` : 'Nhấn Bắt đầu để chơi')
   }, [difficultyId, hasStarted])
@@ -804,12 +826,26 @@ export default function PikachuPage() {
     setStatus('Tiếp tục chơi')
   }, [currentLevel, currentLevelConfig.title, hasStarted, isRunning, playerName, result])
 
-  const penalize = useCallback((message: string) => {
-    setStatus(message)
+  const handleBackHome = useCallback(() => {
+    setHasStarted(false)
+    setIsRunning(false)
+    setSelected(null)
+    setHint(null)
+    setShowNoPairsModal(false)
+    setCompletedLevel(null)
+    setStatus('Nhấn Bắt đầu để chơi')
   }, [])
 
+  const handleContinueNextLevel = useCallback(() => {
+    if (completedLevel === null) return
+
+    setCompletedLevel(null)
+    setIsRunning(true)
+    setStatus(`Màn ${currentLevel}: ${currentLevelConfig.title}`)
+  }, [completedLevel, currentLevel, currentLevelConfig.title])
+
   const finishSuccessfulMatch = useCallback(
-    (first: Position, second: Position) => {
+    (match: MatchPair) => {
       setSelected(null)
       setHint(null)
       setCombo((currentCombo) => {
@@ -818,24 +854,28 @@ export default function PikachuPage() {
         setScore((currentScore) => currentScore + 100 + nextCombo * 15 + turnBonus)
         return nextCombo
       })
-      setShufflesLeft((current) => current + 1)
 
       setBoard((currentBoard) => {
-        const arrangedBoard = applyArrangement(removeTiles(currentBoard, first, second), currentLevelConfig.arrangement)
+        const arrangedBoard = applyArrangement(
+          removeTiles(currentBoard, match.first, match.second),
+          currentLevelConfig.arrangement,
+        )
         const remaining = countTiles(arrangedBoard)
 
         if (remaining === 0) {
           if (currentLevel < LEVELS.length) {
             const nextLevel = currentLevel + 1
-            const nextLevelConfig = getLevelConfig(nextLevel)
 
             setCurrentLevel(nextLevel)
             setSelected(null)
             setHint(null)
             setTimeLeft(difficulty.timeLimit)
             setHintsLeft(difficulty.hints)
-            setShufflesLeft(difficulty.shuffles)
-            setStatus(`Man ${nextLevel}: ${nextLevelConfig.title}`)
+            setShufflesLeft((current) => current + 1)
+            setIsRunning(false)
+            setShowNoPairsModal(false)
+            setCompletedLevel(currentLevel)
+            setStatus(`Hoàn thành màn ${currentLevel}. Chọn tiếp tục để chơi màn ${nextLevel}`)
 
             return createBoard(difficulty)
           }
@@ -847,11 +887,9 @@ export default function PikachuPage() {
         }
 
         const nextPlayablePairCount = findPlayablePairs(arrangedBoard).length
-        setStatus(
-          nextPlayablePairCount > 0
-            ? `Còn ${nextPlayablePairCount}`
-            : getNoPairsStatus(shufflesLeft + 1 > 0),
-        )
+        if (nextPlayablePairCount === 0) {
+          setStatus(getNoPairsStatus(shufflesLeft > 0))
+        }
 
         return arrangedBoard
       })
@@ -870,13 +908,11 @@ export default function PikachuPage() {
 
       if (!selected) {
         setSelected(position)
-        setStatus(symbolById[tile.symbolId]?.label || 'Đã chọn')
         return
       }
 
       if (samePosition(selected, position)) {
         setSelected(null)
-        setStatus('Bỏ chọn')
         return
       }
 
@@ -889,7 +925,6 @@ export default function PikachuPage() {
 
       if (selectedTile.symbolId !== tile.symbolId) {
         setSelected(position)
-        penalize('Khác Hình')
         return
       }
 
@@ -897,13 +932,12 @@ export default function PikachuPage() {
 
       if (!cachedMatch) {
         setSelected(position)
-        penalize(needsShuffle ? 'Cần đổi vị trí' : 'Đã bị chặn')
         return
       }
 
-      finishSuccessfulMatch(selected, position)
+      finishSuccessfulMatch(cachedMatch)
     },
-    [board, canInteract, finishSuccessfulMatch, needsShuffle, penalize, playablePairLookup, selected],
+    [board, canInteract, finishSuccessfulMatch, playablePairLookup, selected],
   )
 
   const handleHint = useCallback(() => {
@@ -919,7 +953,6 @@ export default function PikachuPage() {
     setHintsLeft((current) => Math.max(0, current - 1))
     setSelected(match.first)
     setHint(match)
-    setStatus('Goi y')
   }, [canInteract, hintsLeft, playablePairs, shufflesLeft])
 
   const handleShuffle = useCallback(() => {
@@ -932,14 +965,15 @@ export default function PikachuPage() {
     setBoard(shuffled.board)
     setSelected(null)
     setHint(null)
+    setShowNoPairsModal(false)
     setShufflesLeft((current) => Math.max(0, current - 1))
     setCombo(0)
-    setStatus(
-      nextPlayablePairCount > 0
-        ? `Đã xáo: còn ${nextPlayablePairCount} cấp`
-        : getNoPairsStatus(nextShufflesLeft > 0),
-    )
-  }, [board, canInteract, remainingTiles, shufflesLeft])
+    if (nextPlayablePairCount === 0) {
+      setStatus(getNoPairsStatus(nextShufflesLeft > 0))
+    } else {
+      setStatus(`Màn ${currentLevel}: ${currentLevelConfig.title}`)
+    }
+  }, [board, canInteract, currentLevel, currentLevelConfig.title, remainingTiles, shufflesLeft])
 
   const handleReload = useCallback(() => {
     if (typeof window === 'undefined') return
@@ -967,8 +1001,6 @@ export default function PikachuPage() {
       setStatus('Dang cai dat game')
       return
     }
-
-    setStatus('Ban da dong hop thoai cai dat')
   }, [installPrompt, isInstalled])
 
   useEffect(() => {
@@ -992,10 +1024,13 @@ export default function PikachuPage() {
   }, [playerName])
 
   useEffect(() => {
+    loadLeaderboard()
+  }, [loadLeaderboard])
+
+  useEffect(() => {
     if (result === 'playing' || !hasStarted || !playerName || hasSavedGameOverRef.current) return
 
     hasSavedGameOverRef.current = true
-    setGameOverSyncState('saving')
 
     void pikachuService.saveGame({
       player_name: playerName,
@@ -1014,12 +1049,8 @@ export default function PikachuPage() {
         remaining_tiles: remainingTiles,
       },
     })
-      .then(() => {
-        setGameOverSyncState('saved')
-      })
-      .catch(() => {
-        setGameOverSyncState('error')
-      })
+      .then(() => loadLeaderboard())
+      .catch(() => undefined)
   }, [
     combo,
     currentLevel,
@@ -1034,6 +1065,7 @@ export default function PikachuPage() {
     score,
     shufflesLeft,
     timeLeft,
+    loadLeaderboard,
   ])
 
   useEffect(() => {
@@ -1055,10 +1087,14 @@ export default function PikachuPage() {
   }, [result, timeLeft])
 
   useEffect(() => {
-    if (result !== 'playing' || !needsShuffle) return
+    if (result !== 'playing' || !hasStarted || !needsShuffle) {
+      setShowNoPairsModal(false)
+      return
+    }
 
     setStatus(getNoPairsStatus(shufflesLeft > 0))
-  }, [needsShuffle, result, shufflesLeft])
+    setShowNoPairsModal(shufflesLeft > 0)
+  }, [hasStarted, needsShuffle, result, shufflesLeft])
 
   useEffect(() => {
     if (typeof document === 'undefined') return undefined
@@ -1088,7 +1124,6 @@ export default function PikachuPage() {
     const handleInstalled = () => {
       setInstallPrompt(null)
       setIsInstalled(true)
-      setStatus('Da cai dat game ra man hinh chinh')
       if (!readPlayerName()) {
         setShowPlayerNameDialog(true)
       }
@@ -1108,15 +1143,153 @@ export default function PikachuPage() {
 
   return (
     <section
-      className={cn(
-        'pikachu-game-root min-h-dvh bg-[#170703] text-[#ffd51f] tracking-normal',
-        isFullscreen ? 'fixed inset-0 z-50 overflow-hidden' : 'overflow-auto',
-      )}
+      className={`pikachu-game-root min-h-dvh bg-[#170703] text-[#ffd51f] tracking-normal ${
+        isFullscreen ? 'fixed inset-0 z-50 overflow-hidden' : 'overflow-auto'
+      }`}
     >
       <style>
         {`
           .pikachu-rotate-lock {
             display: none;
+          }
+
+          .pikachu-glow-modal {
+            position: relative;
+            isolation: isolate;
+            overflow: hidden;
+            border-color: rgba(255, 221, 47, 0.52);
+            background-color: rgba(22, 7, 3, 0.3);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+            box-shadow:
+              0 0 18px rgba(255, 221, 47, 0.18),
+              0 18px 45px rgba(0, 0, 0, 0.42);
+          }
+
+          .pikachu-board-stage {
+            background-image:
+              linear-gradient(135deg, rgba(10, 3, 1, 0.26), rgba(10, 3, 1, 0.58)),
+              url("/images/pikachu/fantastic-pokemon-home.webp");
+            background-position: center;
+            background-size: cover;
+          }
+
+          .pikachu-modal-backdrop {
+            background: rgba(10, 3, 1, 0.1);
+            backdrop-filter: blur(1px);
+            -webkit-backdrop-filter: blur(1px);
+          }
+
+          .pikachu-home-modal {
+            min-height: min(520px, calc(100dvh - 2rem));
+          }
+
+          .pikachu-glow-modal::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+            border-radius: inherit;
+            padding: 2px;
+            pointer-events: none;
+            background: conic-gradient(
+              from var(--pikachu-modal-border-angle, 0deg),
+              rgba(255, 221, 47, 0.12),
+              rgba(255, 234, 0, 0.95),
+              rgba(249, 115, 22, 0.95),
+              rgba(156, 255, 0, 0.9),
+              rgba(255, 221, 47, 0.12)
+            );
+            -webkit-mask:
+              linear-gradient(#000 0 0) content-box,
+              linear-gradient(#000 0 0);
+            -webkit-mask-composite: xor;
+            mask-composite: exclude;
+            animation: pikachu-modal-border-spin 2.4s linear infinite;
+          }
+
+          .pikachu-glow-modal > * {
+            position: relative;
+            z-index: 1;
+          }
+
+          @property --pikachu-modal-border-angle {
+            syntax: "<angle>";
+            initial-value: 0deg;
+            inherits: false;
+          }
+
+          @keyframes pikachu-modal-border-spin {
+            to {
+              --pikachu-modal-border-angle: 360deg;
+            }
+          }
+
+          @media (prefers-reduced-motion: reduce) {
+            .pikachu-glow-modal::before {
+              animation: none;
+            }
+          }
+
+          @media (min-width: 921px) {
+            .pikachu-desktop-frame {
+              min-height: 100dvh;
+            }
+
+            .pikachu-game-sidebar {
+              width: clamp(220px, 23vw, 320px);
+              padding: 0.75rem;
+            }
+
+            .pikachu-board-title {
+              padding: 0.75rem;
+              font-size: 1.5rem;
+              line-height: 1.15;
+            }
+
+            .pikachu-board-grid {
+              left: 3% !important;
+              width: min(94%, calc((100dvh - 5rem) * 16 / 9)) !important;
+            }
+
+            .pikachu-action-button {
+              min-height: 2.5rem;
+              padding: 0.625rem 0.75rem;
+              font-size: 0.8125rem;
+            }
+
+            .pikachu-action-button svg {
+              height: 1.125rem;
+              width: 1.125rem;
+            }
+
+            .pikachu-glow-modal {
+              font-size: 1rem;
+            }
+          }
+
+          @media (min-width: 1280px) {
+
+            .pikachu-game-sidebar {
+              width: clamp(300px, 22vw, 380px);
+              padding: 1rem;
+            }
+
+            .pikachu-board-title {
+              padding: 1rem;
+              font-size: 1.75rem;
+            }
+
+            .pikachu-board-grid {
+              left: 2.5% !important;
+              width: min(95%, calc((100dvh - 5.75rem) * 16 / 9)) !important;
+            }
+
+            .pikachu-action-button {
+              min-height: 2.75rem;
+              padding: 0.75rem 0.875rem;
+              font-size: 0.875rem;
+            }
           }
 
           @media (max-width: 920px) {
@@ -1181,13 +1354,6 @@ export default function PikachuPage() {
               border-width: 0;
             }
 
-            .pikachu-game-main {
-              display: flex;
-              flex-direction: row;
-              align-items: stretch;
-              gap: 0.5rem;
-            }
-
             .pikachu-game-time-column,
             .pikachu-game-time-mobile {
               display: none;
@@ -1195,12 +1361,6 @@ export default function PikachuPage() {
 
             .pikachu-game-panel-clock {
               display: flex;
-            }
-          }
-
-          @media (max-width: 920px) and (orientation: landscape) and (max-height: 390px) {
-            .pikachu-game-main {
-              gap: 0.35rem;
             }
           }
         `}
@@ -1226,16 +1386,13 @@ export default function PikachuPage() {
       </div>
       {showPlayerIdentityDialog ? (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-[#160703]/78 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-lg border border-[#ffdd2f]/40 bg-[#351609] p-5 shadow-xl">
+          <div className="pikachu-glow-modal w-full max-w-md rounded-lg border border-[#ffdd2f]/40 bg-[#351609] p-5 shadow-xl">
             <div className="text-center">
-              <div className="text-xl font-bold text-[#ffdd2f]">Tên người chơi</div>
-              <div className="mt-2 text-sm font-medium text-[#ffd24a]/85">
-                Nhập tên để lưu kết quả mỗi khi game over.
-              </div>
+              <div className="text-xl font-bold text-[#ffdd2f]">Thông tin người chơi</div>
             </div>
             <div className="mt-4">
               <label className="text-xs font-black uppercase text-[#ffc84a]/70" htmlFor="pikachu-player-name">
-                Người chơi
+                Nick Name
               </label>
               <input
                 id="pikachu-player-name"
@@ -1244,7 +1401,7 @@ export default function PikachuPage() {
                 maxLength={40}
                 autoFocus
                 className="mt-2 h-11 w-full rounded-md border border-[#995018]/80 bg-[#2a0e05]/80 px-3 text-sm font-semibold text-[#fff1a6] outline-none transition focus:border-[#ffdd2f]"
-                placeholder="Ví dụ: Minh Tri"
+                placeholder="Ví dụ: Harry Porter"
                 onChange={(event) => setPlayerNameDraft(event.target.value)}
                 onKeyDown={(event) => {
                   if (event.key === 'Enter') {
@@ -1265,21 +1422,16 @@ export default function PikachuPage() {
         </div>
       ) : null}
       <div className="mx-auto flex min-h-dvh flex-col bg-[radial-gradient(circle_at_50%_0%,rgba(138,65,20,0.82),rgba(64,24,10,0.95)_48%,#180703_100%)]">
-        <div className="pikachu-game-frame relative flex flex-col overflow-hidden border border-[#713613] bg-[#351609] shadow-2xl">
+        <div className="pikachu-desktop-frame h-screen relative flex flex-col overflow-hidden border border-[#713613] bg-[#351609] shadow-2xl">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(138,65,20,0.82),rgba(64,24,10,0.95)_48%,#180703_100%)]" />
           <div className="absolute inset-0 opacity-25 [background-image:linear-gradient(90deg,rgba(255,221,92,0.08)_1px,transparent_1px),linear-gradient(rgba(255,221,92,0.05)_1px,transparent_1px)] [background-size:24px_24px]" />
 
-          <main className="relative pikachu-game-main flex flex-1 flex-row items-stretch gap-2">
-            <aside className="flex basis-2/12 flex-col rounded-md border p-2 border-[#995018]/70 bg-[#240c05]/80">
-              <div className="p-2 text-center font-bold text-xl">Màn {String(currentLevel)}</div>
-              <div className="pikachu-game-panel-clock hidden items-center justify-center gap-1 rounded-md border border-[#995018]/70 bg-[#2a0e05]/70 px-2 py-1 text-xs font-black text-[#ffdd2f]">
-                <Clock3 className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                {formatTime(timeLeft)}
-              </div>
-              <div className="flex flex-wrap justify-start gap-2 text-sm font-bold py-2">
+          <main className="relative flex flex-1 flex-row items-stretch">
+            <aside className="pikachu-game-sidebar flex flex-col rounded-r-md border p-2 border-[#995018]/70 bg-[#240c05]/80 w-[140px] lg:w-[340px]">
+              <div className="mb-4 text-center font-bold text-xl">Pi Ka Pi Ka</div>
+              <div className="flex flex-wrap justify-start gap-2 text-sm font-bold">
                 <ArcadeButton
                   icon={Download}
-                  label={isInstalled ? 'Da cai' : 'Cai app'}
                   onClick={() => {
                     void handleInstallApp()
                   }}
@@ -1287,68 +1439,60 @@ export default function PikachuPage() {
                 />
                 <ArcadeButton
                   icon={Lightbulb}
-                  label={`Goi y (${hintsLeft})`}
                   onClick={handleHint}
                   disabled={!canInteract || hintsLeft <= 0}
+                  badge={hintsLeft}
                 />
                 <ArcadeButton
                   icon={Shuffle}
-                  label={`Xao (${shufflesLeft})`}
                   onClick={handleShuffle}
                   disabled={!canInteract || shufflesLeft <= 0}
+                  badge={shufflesLeft}
                 />
               </div>
-              <div className="pb-2">
-                <ArcadeButton
-                  icon={hasStarted && isRunning ? Pause : Play}
-                  onClick={handleToggleGameRunning}
-                  disabled={result !== 'playing'}
-                  label={!hasStarted ? 'Bat dau' : isRunning ? 'Tam dung' : 'Tiep tuc'}
-                />
-              </div>
-              <div className="pb-2">
-                <ArcadeButton icon={RotateCcw} onClick={() => resetGame()} label="Chơi lại" />
-              </div>
+              <ArcadeButton
+                icon={hasStarted && isRunning ? Pause : Play}
+                onClick={handleToggleGameRunning}
+                disabled={result !== 'playing' || isLevelCompleteWaiting}
+                label={!hasStarted ? 'Bắt đầu' : isRunning ? 'Tạm Dừng' : 'Tiếp Tục'}
+              />
+              <ArcadeButton icon={RotateCcw} onClick={() => resetGame()} label="Chơi lại" />
 
-              <div className="mt-3 rounded-md border border-[#995018]/70 bg-[#2a0e05]/70 px-2 py-2">
-                <div className="text-[10px] font-black uppercase text-[#ffc84a]/70">Trang thai</div>
-                <div className="mt-1 text-xs font-bold leading-tight text-[#fff1a6]">{status}</div>
-                <div className="mt-2 flex items-center justify-between text-[10px] font-black text-[#ffc84a]/75">
-                  <span>Cap cao nhat</span>
-                  <span className="text-[#ffdd2f]">{playablePairCount}</span>
+              <div className="mt-3 rounded-md border border-[#995018]/70 bg-[#2a0e05]/70 p-1">
+                <div className="text-[10px] font-black uppercase text-[#ffc84a]/70">Trạng Thái</div>
+                <div className="inline-flex items-center justify-center gap-1 rounded-md py-1 text-xs font-black text-[#ffdd2f]">
+                  Time: {formatTime(timeLeft)}
+                  <Clock3 className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                 </div>
+                <div className="text-xs font-bold text-[#fff1a6]">{status}</div>
+                {isRunning && (
+                  <div className="flex items-center justify-between text-[10px] font-black text-[#ffc84a]/75">
+                    <span>Cặp có thể ăn</span>
+                    <span className="text-[#ffdd2f]">{playablePairCount}</span>
+                  </div>
+                )}
               </div>
-
-              <div className="grid grid-cols-1 text-[11px] pt-5 pb-2">
-                <SideStat label="Tên" value={playerName || 'Chua dat'} />
-                <SideStat label="Còn lại" value={String(remainingTiles)} />
-                <SideStat label="Combo" value={String(combo)} />
-                <SideStat label="Sai" value={String(mistakes)} />
-                <SideStat label="Luot Doi" value={String(shufflesLeft)} />
-                <SideStat label="Diem" value={score.toLocaleString('vi-VN')} />
-                <SideStat label="Diem max" value={highScore.toLocaleString('vi-VN')} />
-                <SideStat label="Man max" value={String(highestLevel)} />
+              <div className="mt-3 rounded-md border border-[#995018]/70 bg-[#2a0e05]/70 p-1 mb-4">
+                <div className="text-[10px] font-black uppercase text-[#ffc84a]/70">Thông tin</div>
+                <div className="grid grid-cols-1 text-[11px]">
+                  <SideStat label="Tên" value={playerName || 'No Name'} />
+                  <SideStat label="Còn lại" value={String(remainingTiles)} />
+                  <SideStat label="Luot Doi" value={String(shufflesLeft)} />
+                </div>
               </div>
               <ArcadeButton icon={RefreshCw} onClick={handleReload} label="Reload Game" />
             </aside>
 
-            <section className="min-w-0 basis-11/12 bg-[#2b0d05]/60 pt-6">
-              <div
-                className="relative mx-auto"
-                style={
-                  {
-                    aspectRatio: `${difficulty.cols + 2}/${difficulty.rows}`,
-                  } as CSSProperties
-                }
-              >
+            <section className="pikachu-board-stage relative min-w-0 basis-11/12 bg-[#2b0d05]/60">
+              {!shouldHideBoard && <div className="text-white p-2 text-center font-bold text-2xl">Màn {String(currentLevel)}</div>}
+              <div className="mx-auto" >
                 <div
-                  className={cn(
-                    'absolute grid rounded-sm border border-[#48d483] bg-[#15804c] p-[2px] shadow-[0_12px_30px_rgba(0,0,0,0.28)] transition-opacity duration-200',
-                    shouldHideBoard ? 'pointer-events-none opacity-0' : 'opacity-100',
-                  )}
+                  className={`pikachu-board-grid relative grid rounded-sm p-[2px] transition-opacity duration-200 ${
+                    shouldHideBoard ? 'pointer-events-none opacity-0' : 'opacity-100'
+                  }`}
                   style={{
-                    left: `${100 / (difficulty.cols + 2)}%`,
-                    width: `${(difficulty.cols / (difficulty.cols + 2)) * 100}%`,
+                    left: `${100 / (difficulty.cols + 1)}%`,
+                    width: `${(difficulty.cols / (difficulty.cols + 3)) * 100}%`,
                     gridTemplateColumns: `repeat(${difficulty.cols}, minmax(0, 1fr))`,
                     gridTemplateRows: `repeat(${difficulty.rows}, minmax(0, 1fr))`,
                   }}
@@ -1376,73 +1520,194 @@ export default function PikachuPage() {
                         <button
                           key={tile.id}
                           type="button"
-                          className={cn(
-                            'relative flex aspect-square h-full w-full touch-manipulation items-center justify-center overflow-hidden rounded-[2px] border p-0 text-current transition duration-100',
-                            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ffea00] focus-visible:ring-offset-1 focus-visible:ring-offset-[#401409]',
-                            canInteract ? 'hover:brightness-110 active:scale-95' : 'cursor-default',
-                            isSelected ? 'z-10 border-[#ffea00] ring-2 ring-[#ffffff] ring-inset opacity-50' : 'border-[#1ca463]',
-                            isHinted ? 'animate-pulse' : '',
-                          )}
+                          className={`overflow-hidden relative flex aspect-square h-full w-full select-none touch-manipulation items-center justify-center overflow-hidden rounded-[2px] border p-0 text-current transition duration-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ffea00] focus-visible:ring-offset-1 focus-visible:ring-offset-[#401409] ${
+                            canInteract ? 'hover:brightness-110 active:scale-95' : 'cursor-default'
+                          } ${
+                            isSelected ? 'z-10 border-3 border-[#ff0000] ring-3 ring-[#ffea00] ring-inset opacity-90' : ''
+                          } ${isHinted ? 'animate-pulse' : ''}`}
                           disabled={!canInteract}
                           aria-label={`${symbol.label} ${rowIndex + 1}-${colIndex + 1}`}
-                          onClick={() => handleTileClick(position)}
+                          onPointerUp={(event) => {
+                            if (event.button !== 0) return
+                            event.preventDefault()
+                            handleTileClick(position)
+                          }}
+                          onKeyDown={(event) => {
+                            if (event.key === 'Enter' || event.key === ' ') {
+                              event.preventDefault()
+                              handleTileClick(position)
+                            }
+                          }}
                         >
                           <TileFace symbol={symbol} />
                         </button>
                       )
                     }),
                   )}
+
+                  <aside
+                    className={`h-full absolute -right-8 transition-opacity duration-200 ${
+                      shouldHideBoard ? 'pointer-events-none opacity-0' : 'opacity-100'
+                    }`}
+                  >
+                    <div className="flex items-center h-full gap-2">
+                      <div className="relative h-full w-4 flex-1 overflow-hidden rounded-full border border-[#8b2a0b] bg-[#2a0c04] shadow-[inset_0_2px_8px_rgba(0,0,0,0.65)]">
+                        <div
+                          className="absolute inset-x-0 bottom-0 rounded-full bg-gradient-to-t from-[#dc1f00] via-[#f97316] to-[#9CFF00] transition-[height] duration-500"
+                          style={{ height: `${timeProgress}%` }}
+                        />
+                      </div>
+                    </div>
+                  </aside>
                 </div>
                 {showStartOverlay ? (
-                  <div className="absolute inset-0 z-30 flex items-center justify-center rounded-lg bg-[#160703]/82 p-4 backdrop-blur-sm">
-                    <div className="w-full max-w-sm rounded-lg border border-[#ffdd2f]/40 bg-[#351609] p-5 text-center shadow-xl">
-                      <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-md bg-[#174b37] text-[#ffdd2f]">
-                        <Play className="h-6 w-6" aria-hidden="true" />
-                      </div>
-                      <h2 className="text-xl font-bold text-[#ffdd2f]">Bắt đầu</h2>
-                      <div className="mt-4 grid gap-2 rounded-md border border-[#995018]/70 bg-[#2a0e05]/70 px-3 py-3 text-left text-sm font-bold text-[#fff1a6]">
-                        <div className="flex items-center justify-between gap-3">
-                          <span>Điểm cao nhất</span>
-                          <span className="text-[#ffdd2f]">{highScore.toLocaleString('vi-VN')}</span>
+                  <div className="pikachu-modal-backdrop absolute inset-0 z-30 flex items-center justify-center rounded-lg p-4">
+                    <div className="pikachu-glow-modal pikachu-home-modal max-h-[calc(100dvh-2rem)] w-full max-w-5xl overflow-y-auto rounded-lg border border-[#ffdd2f]/40 bg-[#351609] p-5 text-center shadow-xl">
+                      <h2 className="text-center text-3xl font-black uppercase text-[#ffdd2f] drop-shadow-[0_3px_0_rgba(87,29,8,0.85)]">
+                        PI KA PI KA
+                      </h2>
+                      <div className="flex justify-between gap-4 items-start ">
+                        <div className="flex items-center justify-center">
+                          <div className="w-full max-w-md rounded-md border border-[#ffdd2f]/35 bg-[#160703]/72 p-4 text-left shadow-[0_12px_28px_rgba(0,0,0,0.35)] backdrop-blur-[2px]">
+                            <div className="flex items-center gap-3">
+                              <div className="min-w-0">
+                                <div className="text-sm">Pi ka Pi ka, Xin Chào</div>
+                                <div className="truncate text-xl font-black text-[#fff1a6]">{playerName || 'No Name'}</div>
+                              </div>
+                            </div>
+                            <div className="mt-4 grid gap-2 text-sm font-bold text-[#fff1a6]">
+                              <div className="flex items-center justify-between gap-3 rounded-md border border-[#995018]/70 bg-[#2a0e05]/76 px-3 py-2">
+                                <span>Điểm cao nhất</span>
+                                <span className="text-[#ffdd2f]">{highScore.toLocaleString('vi-VN')}</span>
+                              </div>
+                              <div className="flex items-center justify-between gap-3 rounded-md border border-[#995018]/70 bg-[#2a0e05]/76 px-3 py-2">
+                                <span>Màn chơi cao nhất</span>
+                                <span className="text-[#ffdd2f]">Màn {highestLevel}</span>
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              className="mt-4 inline-flex h-10 w-full items-center justify-center gap-2 rounded-md bg-[#f97316] px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[#ea580c]"
+                              onClick={handleToggleGameRunning}
+                            >
+                              <Play className="h-4 w-4" aria-hidden="true" />
+                              Bắt đầu
+                            </button>
+                          </div>
                         </div>
-                        <div className="flex items-center justify-between gap-3">
-                          <span>Màn chơi cao nhất</span>
-                          <span className="text-[#ffdd2f]">Màn {highestLevel}</span>
+                        <div className="rounded-md border border-[#ffdd2f]/35 bg-[#160703]/74 p-3 text-left shadow-[0_12px_28px_rgba(0,0,0,0.35)] backdrop-blur-[2px]">
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="inline-flex items-center gap-2 text-sm font-black text-[#ffdd2f]">
+                              <Trophy className="h-4 w-4" aria-hidden="true" />
+                              Bảng xếp hạng
+                            </div>
+                            <div className="text-xs font-black text-[#ffc84a]/75">Top 10</div>
+                          </div>
+                          <div className="h-[60vh] overflow-auto">
+                            <div className="mt-3 grid gap-1.5">
+                              {isLeaderboardLoading ? (
+                                <div className="rounded-md border border-[#995018]/60 bg-[#2a0e05]/70 px-3 py-2 text-center text-xs font-bold text-[#ffd24a]/80">
+                                  Đang tải bảng xếp hạng
+                                </div>
+                              ) : leaderboardError ? (
+                                <div className="rounded-md border border-[#995018]/60 bg-[#2a0e05]/70 px-3 py-2 text-center text-xs font-bold text-[#ffd24a]/80">
+                                  {leaderboardError}
+                                </div>
+                              ) : leaderboard.length > 0 ? (
+                                leaderboard.map((entry) => {
+                                  const isCurrentPlayer = entry.playerName === playerName
+
+                                  return (
+                                    <div
+                                      key={`${entry.rank}-${entry.playerName}`}
+                                      className={`grid grid-cols-[2rem_minmax(0,1fr)_auto] items-center gap-2 rounded-md border px-2 py-1.5 text-xs font-bold ${
+                                        isCurrentPlayer
+                                          ? 'border-[#ffdd2f]/65 bg-[#5a3309]/85 text-[#fff1a6]'
+                                          : 'border-[#995018]/55 bg-[#2a0e05]/68 text-[#ffd24a]/86'
+                                      }`}
+                                    >
+                                      <div className="text-center text-[#ffdd2f]">#{entry.rank}</div>
+                                      <div className="min-w-0">
+                                        <div className="truncate text-[#fff1a6]">{entry.playerName}</div>
+                                        <div className="text-[10px] text-[#ffc84a]/72">
+                                          Màn {entry.highestLevel} · {entry.gamesPlayed} lượt
+                                        </div>
+                                      </div>
+                                      <div className="text-right text-[#ffdd2f]">
+                                        {entry.score.toLocaleString('vi-VN')}
+                                      </div>
+                                    </div>
+                                  )
+                                })
+                              ) : (
+                                <div className="rounded-md border border-[#995018]/60 bg-[#2a0e05]/70 px-3 py-2 text-center text-xs font-bold text-[#ffd24a]/80">
+                                  Chưa có dữ liệu xếp hạng
+                                </div>
+                              )}
+                            </div>
+                          </div>
                         </div>
                       </div>
-                      <button
-                        type="button"
-                        className="mt-4 inline-flex h-10 items-center justify-center gap-2 rounded-md bg-[#f97316] px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[#ea580c]"
-                        onClick={handleToggleGameRunning}
-                      >
-                        <Play className="h-4 w-4" aria-hidden="true" />
-                        Bắt đầu
-                      </button>
                     </div>
                   </div>
-                ) : showPauseOverlay ? (
-                  <div className="absolute inset-0 z-30 flex items-center justify-center rounded-lg bg-[#160703]/82 p-4 backdrop-blur-sm">
-                    <div className="w-full max-w-sm rounded-lg border border-[#ffdd2f]/40 bg-[#351609] p-5 text-center shadow-xl">
-                      <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-md bg-[#4a1b0c] text-[#ffdd2f]">
-                        <Pause className="h-6 w-6" aria-hidden="true" />
+                ) : isLevelCompleteWaiting ? (
+                  <div className="pikachu-modal-backdrop absolute inset-0 z-30 flex items-center justify-center rounded-lg p-4">
+                    <div className="pikachu-glow-modal w-full max-w-sm rounded-lg border border-[#ffdd2f]/40 bg-[#351609] p-5 text-center shadow-xl">
+                      <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-md bg-[#174b37] text-[#ffdd2f]">
+                        <Trophy className="h-6 w-6" aria-hidden="true" />
                       </div>
-                      <h2 className="text-xl font-bold text-[#ffdd2f]">Tạm dừng</h2>
+                      <h2 className="text-xl font-bold text-[#ffdd2f]">Hoàn thành màn {completedLevel}</h2>
                       <p className="mt-2 text-sm font-medium text-[#ffd24a]/85">
-                        Board đang được ẩn. Bấm tiếp tục để chơi tiếp.
+                        Sẵn sàng chơi màn {currentLevel}: {currentLevelConfig.title}
                       </p>
                       <button
                         type="button"
-                        className="mt-4 inline-flex h-10 items-center justify-center gap-2 rounded-md bg-[#f97316] px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[#ea580c]"
-                        onClick={handleToggleGameRunning}
+                        className="mt-4 inline-flex h-10 w-full items-center justify-center gap-2 rounded-md bg-[#f97316] px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[#ea580c]"
+                        onClick={handleContinueNextLevel}
                       >
                         <Play className="h-4 w-4" aria-hidden="true" />
                         Tiếp tục
                       </button>
                     </div>
                   </div>
+                ) : showPauseOverlay ? (
+                  <div className="pikachu-modal-backdrop absolute inset-0 z-30 flex items-center justify-center rounded-lg p-4">
+                    <div className="pikachu-glow-modal w-full max-w-sm rounded-lg border border-[#ffdd2f]/40 bg-[#351609] p-5 text-center shadow-xl">
+                      <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-md bg-[#4a1b0c] text-[#ffdd2f]">
+                        <Pause className="h-6 w-6" aria-hidden="true" />
+                      </div>
+                      <h2 className="text-xl font-bold text-[#ffdd2f]">Tạm dừng</h2>
+                      <div className="mt-4 grid gap-2">
+                        <button
+                          type="button"
+                          className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md bg-[#f97316] px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[#ea580c]"
+                          onClick={handleToggleGameRunning}
+                        >
+                          <Play className="h-4 w-4" aria-hidden="true" />
+                          Tiếp tục
+                        </button>
+                        <button
+                          type="button"
+                          className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-[#ffdd2f]/35 bg-[#2a0e05]/88 px-4 text-sm font-semibold text-[#fff1a6] shadow-sm transition hover:bg-[#3a1609]"
+                          onClick={() => resetGame()}
+                        >
+                          <RotateCcw className="h-4 w-4" aria-hidden="true" />
+                          Chơi lại
+                        </button>
+                        <button
+                          type="button"
+                          className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-[#ffdd2f]/35 bg-[#2a0e05]/88 px-4 text-sm font-semibold text-[#fff1a6] shadow-sm transition hover:bg-[#3a1609]"
+                          onClick={handleBackHome}
+                        >
+                          <House className="h-4 w-4" aria-hidden="true" />
+                          Trang Chủ
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 ) : result !== 'playing' ? (
-                  <div className="absolute inset-0 z-30 flex items-center justify-center rounded-lg bg-[#160703]/70 p-4 backdrop-blur-sm">
-                    <div className="w-full max-w-sm rounded-lg border border-[#ffdd2f]/40 bg-[#351609] p-5 text-center shadow-xl">
+                  <div className="pikachu-modal-backdrop absolute inset-0 z-30 flex items-center justify-center rounded-lg p-4">
+                    <div className="pikachu-glow-modal w-full max-w-sm rounded-lg border border-[#ffdd2f]/40 bg-[#351609] p-5 text-center shadow-xl">
                       <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-md bg-[#174b37] text-[#ffdd2f]">
                         {result === 'won' ? (
                           <Trophy className="h-6 w-6" aria-hidden="true" />
@@ -1453,23 +1718,11 @@ export default function PikachuPage() {
                       <h2 className="text-xl font-bold text-[#ffdd2f]">
                         {result === 'won' ? 'Hoàn thành' : 'Game Over'}
                       </h2>
-                      <p className="mt-2 text-sm font-medium text-[#ffd24a]/85">
-                        Người chơi: {playerName || 'Chua dat ten'}
-                      </p>
                       <p className="mt-1 text-sm font-medium text-[#ffd24a]/85">
                         Điểm: {score.toLocaleString('vi-VN')} | Kỷ lục: {highScore.toLocaleString('vi-VN')}
                       </p>
                       <p className="mt-1 text-sm font-medium text-[#ffd24a]/85">
                         Màn cao nhất: {highestLevel}
-                      </p>
-                      <p className="mt-1 text-xs font-bold text-[#ffc84a]/80">
-                        {gameOverSyncState === 'saving'
-                          ? 'Dang luu ket qua...'
-                          : gameOverSyncState === 'saved'
-                            ? 'Da luu ket qua vao he thong'
-                            : gameOverSyncState === 'error'
-                              ? 'Khong luu duoc ket qua, vui long thu lai o van sau'
-                              : ''}
                       </p>
                       <button
                         type="button"
@@ -1481,23 +1734,28 @@ export default function PikachuPage() {
                       </button>
                     </div>
                   </div>
+                ) : showNoPairsModal ? (
+                  <div className="pikachu-modal-backdrop absolute inset-0 z-30 flex items-center justify-center rounded-lg p-4">
+                    <div className="pikachu-glow-modal w-full max-w-sm rounded-lg border border-[#ffdd2f]/40 bg-[#351609] p-5 text-center shadow-xl">
+                      <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-md bg-[#4a1b0c] text-[#ffdd2f]">
+                        <Shuffle className="h-6 w-6" aria-hidden="true" />
+                      </div>
+                      <h2 className="text-xl font-bold text-[#ffdd2f]">Hết cặp có thể ăn</h2>
+                      <p className="mt-2 text-sm font-medium text-[#ffd24a]/85">
+                        Bố cục hiện tại không còn cặp hợp lệ. Hãy xáo lại để chơi tiếp.
+                      </p>
+                      <button
+                        type="button"
+                        className="mt-4 inline-flex h-10 items-center justify-center gap-2 rounded-md bg-[#f97316] px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[#ea580c]"
+                        onClick={handleShuffle}
+                      >
+                        <Shuffle className="h-4 w-4" aria-hidden="true" />
+                        Xáo lại
+                      </button>
+                    </div>
+                  </div>
                 ) : null}
               </div>
-              <aside
-                className={cn(
-                  'absolute right-2 top-4 transition-opacity duration-200',
-                  shouldHideBoard ? 'pointer-events-none opacity-0' : 'opacity-100',
-                )}
-              >
-                <div className="flex items-center gap-2">
-                  <div className="relative h-100 w-4 flex-1 overflow-hidden rounded-full border border-[#8b2a0b] bg-[#2a0c04] shadow-[inset_0_2px_8px_rgba(0,0,0,0.65)]">
-                    <div
-                      className="absolute inset-x-0 bottom-0 rounded-full bg-gradient-to-t from-[#dc1f00] via-[#f97316] to-[#9CFF00] transition-[height] duration-500"
-                      style={{ height: `${timeProgress}%` }}
-                    />
-                  </div>
-                </div>
-              </aside>
             </section>
           </main>
         </div>
@@ -1508,7 +1766,7 @@ export default function PikachuPage() {
 
 function SideStat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex gap-2 justify-between text-center px-2">
+    <div className="flex gap-2 justify-between text-center">
       <div className="text-sm font-semibold leading-tight text-[#ffdd2f]">{label}</div>
       <div className="mt-1 font-black leading-none text-[#ffdd2f]">{value}</div>
     </div>
@@ -1520,20 +1778,29 @@ function ArcadeButton({
   onClick,
   label,
   disabled,
+  badge,
 }: {
-  label?: string,
+  label?: string
   icon: LucideIcon
   onClick: () => void
   disabled?: boolean
+  badge?: number
 }) {
   return (
     <button
       type="button"
-      className="p-2 inline-flex items-center gap-2 rounded-md border border-[#995018]/80 bg-[#421607]/75 text-xs font-black text-[#ffc400] shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] transition hover:bg-[#562008] disabled:cursor-not-allowed disabled:opacity-45"
+      className="pikachu-action-button p-2 mb-2 inline-flex items-center gap-2 rounded-md border border-[#995018]/80 bg-[#421607]/75 text-xs font-black text-[#ffc400] shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] transition hover:bg-[#562008] disabled:cursor-not-allowed disabled:opacity-45"
       onClick={onClick}
       disabled={disabled}
     >
-      <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+      <span className="relative inline-flex shrink-0">
+        <Icon className="h-4 w-4" aria-hidden="true" />
+        {badge !== undefined ? (
+          <span className="absolute -right-4 -top-4 inline-flex min-w-4 items-center justify-center rounded-full bg-[#ffdd2f] px-1 text-[10px] text-[#3b1406]">
+            {badge}
+          </span>
+        ) : null}
+      </span>
       {label}
     </button>
   )
@@ -1545,7 +1812,7 @@ function TileFace({ symbol }: { symbol: TileSymbol }) {
   if (symbol.imageSrc && !imageFailed) {
     return (
       <img
-        className="h-full w-full object-cover"
+        className="h-full w-full select-none object-cover"
         src={symbol.imageSrc}
         alt=""
         draggable={false}
@@ -1557,5 +1824,5 @@ function TileFace({ symbol }: { symbol: TileSymbol }) {
 
   const Icon = symbol.Icon
 
-  return <Icon className="h-full w-full" strokeWidth={2.4} aria-hidden="true" />
+  return <Icon className="h-full w-full select-none" strokeWidth={2.4} aria-hidden="true" />
 }

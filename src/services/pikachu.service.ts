@@ -18,7 +18,23 @@ export type SavePikachuGamePayload = {
   }
 }
 
+export type PikachuLeaderboardEntry = {
+  rank: number
+  playerName: string
+  score: number
+  levelReached: number
+  highestLevel: number
+  gamesPlayed: number
+  playedAt: string | null
+}
+
 export const pikachuService = {
+  getLeaderboard() {
+    return api.get('/pikachu/leaderboard') as Promise<{
+      data: PikachuLeaderboardEntry[]
+    }>
+  },
+
   saveGame(payload: SavePikachuGamePayload) {
     return api.post('/pikachu/sessions', payload) as Promise<{
       message: string
