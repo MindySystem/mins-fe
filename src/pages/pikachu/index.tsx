@@ -28,6 +28,7 @@ import {
   Sun,
   Trophy,
   Zap,
+  Menu
 } from 'lucide-react'
 
 import { pikachuService, type PikachuLeaderboardEntry } from '@/services/pikachu.service'
@@ -183,7 +184,7 @@ const DIFFICULTIES: DifficultyConfig[] = [
     label: 'Co dien',
     rows: BOARD_ROWS,
     cols: BOARD_COLS,
-    timeLimit: 360,
+    timeLimit: 720,
     hints: 3,
     shuffles: 20,
     symbolCount: PIKACHU_IMAGE_COUNT,
@@ -1141,6 +1142,11 @@ export default function PikachuPage() {
     }
   }, [])
 
+  const [openSidebar, setOpenSidebar] = useState<boolean>(true);
+  const handleHiddenSideBar = () => {
+    setOpenSidebar((p) => !p)
+  }
+
   return (
     <section
       className={`pikachu-game-root min-h-dvh bg-[#170703] text-[#ffd51f] tracking-normal ${
@@ -1427,8 +1433,16 @@ export default function PikachuPage() {
           <div className="absolute inset-0 opacity-25 [background-image:linear-gradient(90deg,rgba(255,221,92,0.08)_1px,transparent_1px),linear-gradient(rgba(255,221,92,0.05)_1px,transparent_1px)] [background-size:24px_24px]" />
 
           <main className="relative flex flex-1 flex-row items-stretch">
-            <aside className="pikachu-game-sidebar flex flex-col rounded-r-md border p-2 border-[#995018]/70 bg-[#240c05]/80 w-[140px] lg:w-[340px]">
-              <div className="mb-4 text-center font-bold text-xl">Pi Ka Pi Ka</div>
+            {!openSidebar ?
+              <div className="absolute z-50 top-10 left-10 rounded-lg p-2 bg-white">
+                <Menu className="w-4 h-4 cursor-pointer text-black" onClick={handleHiddenSideBar} />
+              </div>: null
+            }
+            <aside className={`pikachu-game-sidebar flex flex-col rounded-r-md border p-2 border-[#995018]/70 bg-[#240c05]/80 lg:w-[340px] transition-all ${openSidebar ? '' : 'hidden'}`}>
+              <div className="relative mb-4 text-center font-bold text-xl">
+                Pi Ka Pi Ka
+                <Menu className="absolute top-0 right-0 w-4 h-4 cursor-pointer" onClick={handleHiddenSideBar} />
+              </div>
               <div className="flex flex-wrap justify-start gap-2 text-sm font-bold">
                 <ArcadeButton
                   icon={Download}
@@ -1454,7 +1468,7 @@ export default function PikachuPage() {
                 icon={hasStarted && isRunning ? Pause : Play}
                 onClick={handleToggleGameRunning}
                 disabled={result !== 'playing' || isLevelCompleteWaiting}
-                label={!hasStarted ? 'Bắt đầu' : isRunning ? 'Tạm Dừng' : 'Tiếp Tục'}
+                label={!hasStarted && result !== 'playing' ? 'Bắt đầu' : isRunning ? 'Tạm Dừng' : 'Tiếp Tục'}
               />
               <ArcadeButton icon={RotateCcw} onClick={() => resetGame()} label="Chơi lại" />
 
@@ -1483,9 +1497,9 @@ export default function PikachuPage() {
               <ArcadeButton icon={RefreshCw} onClick={handleReload} label="Reload Game" />
             </aside>
 
-            <section className="pikachu-board-stage relative min-w-0 basis-11/12 bg-[#2b0d05]/60">
+            <section className={`pikachu-board-stage relative min-w-0 ${openSidebar ? 'basis-11/12' : 'basis-12/12'} bg-[#2b0d05]/60 transition-all duration-200`}>
               {!shouldHideBoard && <div className="text-white p-2 text-center font-bold text-2xl">Màn {String(currentLevel)}</div>}
-              <div className="mx-auto" >
+              <div className={`mx-auto transition-all duration-200 ${!openSidebar ? 'flex justify-center' : ''}`} >
                 <div
                   className={`pikachu-board-grid relative grid rounded-sm p-[2px] transition-opacity duration-200 ${
                     shouldHideBoard ? 'pointer-events-none opacity-0' : 'opacity-100'
@@ -1591,7 +1605,7 @@ export default function PikachuPage() {
                               onClick={handleToggleGameRunning}
                             >
                               <Play className="h-4 w-4" aria-hidden="true" />
-                              Bắt đầu
+                              {!hasStarted && result !== 'playing' ? 'Bắt đầu' : isRunning ? 'Tạm Dừng' : 'Tiếp Tục'}
                             </button>
                           </div>
                         </div>
