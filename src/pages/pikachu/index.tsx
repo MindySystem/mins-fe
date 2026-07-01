@@ -112,9 +112,27 @@ type BeforeInstallPromptEvent = Event & {
   }>
 }
 
+type SavedGameState = {
+  result: 'playing'
+  difficultyId: DifficultyId
+  currentLevel: number
+  board: Board
+  score: number
+  combo: number
+  mistakes: number
+  hintsLeft: number
+  shufflesLeft: number
+  timeLeft: number
+  playerName: string
+  savedAt: number
+}
+
+type ConfirmAction = { type: 'restart'; autoStart: boolean } | { type: 'reload' }
+
 const HIGH_SCORE_KEY = 'mins-pikachu-connect-high-score'
 const HIGHEST_LEVEL_KEY = 'mins-pikachu-connect-highest-level'
 const PLAYER_NAME_KEY = 'mins-pikachu-player-name'
+const SAVED_GAME_KEY = 'mins-pikachu-connect-saved-game'
 const DEFAULT_DIFFICULTY_ID: DifficultyId = 'classic'
 const PIKACHU_IMAGE_COUNT = 36
 const PIKACHU_IMAGE_REPEAT = 4
@@ -690,11 +708,100 @@ function writePlayerName(playerName: string) {
   window.localStorage.setItem(PLAYER_NAME_KEY, playerName.trim())
 }
 
+function isDifficultyId(value: unknown): value is DifficultyId {
+  return DIFFICULTIES.some((difficulty) => difficulty.id === value)
+}
+
+function isSavedBoard(value: unknown): value is Board {
+  return (
+    Array.isArray(value) &&
+    value.every((row) =>
+      Array.isArray(row) &&
+      row.every(
+        (tile) =>
+          tile === null ||
+          (typeof tile === 'object' &&
+            tile !== null &&
+            typeof (tile as Tile).id === 'string' &&
+            typeof (tile as Tile).symbolId === 'string'),
+      ),
+    )
+  )
+}
+
+function toInteger(value: unknown, fallback: number) {
+  return typeof value === 'number' && Number.isFinite(value) ? Math.trunc(value) : fallback
+}
+
+function readSavedGame(): SavedGameState | null {
+  if (typeof window === 'undefined') return null
+
+  const savedGame = window.localStorage.getItem(SAVED_GAME_KEY)
+  if (!savedGame) return null
+
+  try {
+    const parsed = JSON.parse(savedGame) as unknown
+
+    if (typeof parsed !== 'object' || parsed === null) {
+      window.localStorage.removeItem(SAVED_GAME_KEY)
+      return null
+    }
+
+    const draft = parsed as Partial<SavedGameState>
+
+    if (draft.result !== 'playing' || !isDifficultyId(draft.difficultyId) || !isSavedBoard(draft.board)) {
+      window.localStorage.removeItem(SAVED_GAME_KEY)
+      return null
+    }
+
+    const difficulty = getDifficulty(draft.difficultyId)
+    const hasExpectedBoardSize =
+      draft.board.length === difficulty.rows && draft.board.every((row) => row.length === difficulty.cols)
+
+    if (!hasExpectedBoardSize) {
+      window.localStorage.removeItem(SAVED_GAME_KEY)
+      return null
+    }
+
+    return {
+      result: 'playing',
+      difficultyId: draft.difficultyId,
+      currentLevel: Math.max(1, Math.min(LEVELS.length, toInteger(draft.currentLevel, 1))),
+      board: draft.board,
+      score: Math.max(0, toInteger(draft.score, 0)),
+      combo: Math.max(0, toInteger(draft.combo, 0)),
+      mistakes: Math.max(0, toInteger(draft.mistakes, 0)),
+      hintsLeft: Math.max(0, toInteger(draft.hintsLeft, difficulty.hints)),
+      shufflesLeft: Math.max(0, toInteger(draft.shufflesLeft, difficulty.shuffles)),
+      timeLeft: Math.max(0, Math.min(difficulty.timeLimit, toInteger(draft.timeLeft, difficulty.timeLimit))),
+      playerName: typeof draft.playerName === 'string' ? draft.playerName : '',
+      savedAt: Math.max(0, toInteger(draft.savedAt, Date.now())),
+    }
+  } catch {
+    window.localStorage.removeItem(SAVED_GAME_KEY)
+    return null
+  }
+}
+
+function writeSavedGame(savedGame: SavedGameState) {
+  if (typeof window === 'undefined') return
+
+  window.localStorage.setItem(SAVED_GAME_KEY, JSON.stringify(savedGame))
+}
+
+function clearSavedGame() {
+  if (typeof window === 'undefined') return
+
+  window.localStorage.removeItem(SAVED_GAME_KEY)
+}
+
 export default function PikachuPage() {
   const defaultDifficulty = getDifficulty(DEFAULT_DIFFICULTY_ID)
-  const [difficultyId, setDifficultyId] = useState<DifficultyId>(DEFAULT_DIFFICULTY_ID)
-  const [currentLevel, setCurrentLevel] = useState(1)
-  const [board, setBoard] = useState(() => createBoard(defaultDifficulty))
+  const [savedGame, setSavedGame] = useState<SavedGameState | null>(readSavedGame)
+  const initialDifficulty = savedGame ? getDifficulty(savedGame.difficultyId) : defaultDifficulty
+  const [difficultyId, setDifficultyId] = useState<DifficultyId>(savedGame?.difficultyId || DEFAULT_DIFFICULTY_ID)
+  const [currentLevel, setCurrentLevel] = useState(savedGame?.currentLevel || 1)
+  const [board, setBoard] = useState(() => savedGame?.board || createBoard(initialDifficulty))
   const [selected, setSelected] = useState<Position | null>(null)
   const [hint, setHint] = useState<MatchPair | null>(null)
   const [playerName, setPlayerName] = useState(readPlayerName)
@@ -702,25 +809,27 @@ export default function PikachuPage() {
   const [showPlayerNameDialog, setShowPlayerNameDialog] = useState(() => !readPlayerName())
   const [showNoPairsModal, setShowNoPairsModal] = useState(false)
   const [completedLevel, setCompletedLevel] = useState<number | null>(null)
-  const [score, setScore] = useState(0)
+  const [score, setScore] = useState(savedGame?.score || 0)
   const [highScore, setHighScore] = useState(readHighScore)
   const [highestLevel, setHighestLevel] = useState(readHighestLevel)
-  const [combo, setCombo] = useState(0)
-  const [mistakes, setMistakes] = useState(0)
-  const [hintsLeft, setHintsLeft] = useState(defaultDifficulty.hints)
-  const [shufflesLeft, setShufflesLeft] = useState(defaultDifficulty.shuffles)
-  const [timeLeft, setTimeLeft] = useState(defaultDifficulty.timeLimit)
+  const [combo, setCombo] = useState(savedGame?.combo || 0)
+  const [mistakes, setMistakes] = useState(savedGame?.mistakes || 0)
+  const [hintsLeft, setHintsLeft] = useState(savedGame?.hintsLeft ?? initialDifficulty.hints)
+  const [shufflesLeft, setShufflesLeft] = useState(savedGame?.shufflesLeft ?? initialDifficulty.shuffles)
+  const [timeLeft, setTimeLeft] = useState(savedGame?.timeLeft ?? initialDifficulty.timeLimit)
   const [hasStarted, setHasStarted] = useState(false)
   const [isRunning, setIsRunning] = useState(false)
   const [result, setResult] = useState<GameResult>('playing')
-  const [status, setStatus] = useState('Bắt đầu chơi')
+  const [status, setStatus] = useState(savedGame ? 'Nhấn Tiếp tục để chơi' : 'Bắt đầu chơi')
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null)
   const [isInstalled, setIsInstalled] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
+  const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null)
   const [leaderboard, setLeaderboard] = useState<PikachuLeaderboardEntry[]>([])
   const [isLeaderboardLoading, setIsLeaderboardLoading] = useState(false)
   const [leaderboardError, setLeaderboardError] = useState<string | null>(null)
   const hasSavedGameOverRef = useRef(false)
+  const currentGameSnapshotRef = useRef<SavedGameState | null>(null)
   const difficulty = useMemo(() => getDifficulty(difficultyId), [difficultyId])
   const currentLevelConfig = useMemo(() => getLevelConfig(currentLevel), [currentLevel])
   const remainingTiles = useMemo(() => countTiles(board), [board])
@@ -745,6 +854,7 @@ export default function PikachuPage() {
   const showPauseOverlay = isPaused
   const shouldHideBoard = showStartOverlay || showPauseOverlay || isLevelCompleteWaiting
   const showPlayerIdentityDialog = showPlayerNameDialog || !playerName
+  const playButtonLabel = !hasStarted ? (savedGame ? 'Tiếp tục' : 'Bắt đầu') : isRunning ? 'Tạm Dừng' : 'Tiếp tục'
 
   const loadLeaderboard = useCallback(() => {
     setIsLeaderboardLoading(true)
@@ -766,6 +876,9 @@ export default function PikachuPage() {
   const resetGame = useCallback((nextDifficultyId = difficultyId, autoStart = hasStarted) => {
     const nextDifficulty = getDifficulty(nextDifficultyId)
 
+    clearSavedGame()
+    currentGameSnapshotRef.current = null
+    setSavedGame(null)
     setDifficultyId(nextDifficulty.id)
     setCurrentLevel(1)
     setBoard(createBoard(nextDifficulty))
@@ -786,6 +899,38 @@ export default function PikachuPage() {
     setStatus(autoStart ? `Màn 1: ${getLevelConfig(1).title}` : 'Nhấn Bắt đầu để chơi')
   }, [difficultyId, hasStarted])
 
+  const buildCurrentSavedGame = useCallback((): SavedGameState | null => {
+    if (!hasStarted || result !== 'playing') return null
+
+    return {
+      result: 'playing',
+      difficultyId,
+      currentLevel,
+      board,
+      score,
+      combo,
+      mistakes,
+      hintsLeft,
+      shufflesLeft,
+      timeLeft,
+      playerName,
+      savedAt: Date.now(),
+    }
+  }, [
+    board,
+    combo,
+    currentLevel,
+    difficultyId,
+    hasStarted,
+    hintsLeft,
+    mistakes,
+    playerName,
+    result,
+    score,
+    shufflesLeft,
+    timeLeft,
+  ])
+
   const handleSavePlayerName = useCallback(() => {
     const nextPlayerName = playerNameDraft.trim()
 
@@ -798,8 +943,8 @@ export default function PikachuPage() {
     setPlayerName(nextPlayerName)
     setPlayerNameDraft(nextPlayerName)
     setShowPlayerNameDialog(false)
-    setStatus(hasStarted ? 'Đã cập nhật tên người chơi' : 'Nhấn Bắt đầu để chơi')
-  }, [hasStarted, playerNameDraft])
+    setStatus(hasStarted ? 'Đã cập nhật tên người chơi' : savedGame ? 'Nhấn Tiếp tục để chơi' : 'Nhấn Bắt đầu để chơi')
+  }, [hasStarted, playerNameDraft, savedGame])
 
   const handleToggleGameRunning = useCallback(() => {
     if (result !== 'playing') return
@@ -828,14 +973,21 @@ export default function PikachuPage() {
   }, [currentLevel, currentLevelConfig.title, hasStarted, isRunning, playerName, result])
 
   const handleBackHome = useCallback(() => {
+    const nextSavedGame = buildCurrentSavedGame()
+
+    if (nextSavedGame) {
+      writeSavedGame(nextSavedGame)
+      setSavedGame(nextSavedGame)
+    }
+
     setHasStarted(false)
     setIsRunning(false)
     setSelected(null)
     setHint(null)
     setShowNoPairsModal(false)
     setCompletedLevel(null)
-    setStatus('Nhấn Bắt đầu để chơi')
-  }, [])
+    setStatus(nextSavedGame || savedGame ? 'Nhấn Tiếp tục để chơi' : 'Nhấn Bắt đầu để chơi')
+  }, [buildCurrentSavedGame, savedGame])
 
   const handleContinueNextLevel = useCallback(() => {
     if (completedLevel === null) return
@@ -982,6 +1134,33 @@ export default function PikachuPage() {
     window.location.reload()
   }, [])
 
+  const handleRequestRestart = useCallback((autoStart = hasStarted) => {
+    setConfirmAction({ type: 'restart', autoStart })
+  }, [hasStarted])
+
+  const handleRequestReload = useCallback(() => {
+    setConfirmAction({ type: 'reload' })
+  }, [])
+
+  const handleCloseConfirm = useCallback(() => {
+    setConfirmAction(null)
+  }, [])
+
+  const handleConfirmAction = useCallback(() => {
+    if (!confirmAction) return
+
+    if (confirmAction.type === 'restart') {
+      const { autoStart } = confirmAction
+
+      setConfirmAction(null)
+      resetGame(difficultyId, autoStart)
+      return
+    }
+
+    setConfirmAction(null)
+    handleReload()
+  }, [confirmAction, difficultyId, handleReload, resetGame])
+
   const handleInstallApp = useCallback(async () => {
     if (isInstalled) {
       setStatus('Game dang chay o che do app')
@@ -1027,6 +1206,48 @@ export default function PikachuPage() {
   useEffect(() => {
     loadLeaderboard()
   }, [loadLeaderboard])
+
+  useEffect(() => {
+    currentGameSnapshotRef.current = buildCurrentSavedGame()
+  }, [buildCurrentSavedGame])
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof document === 'undefined') return undefined
+
+    const persistCurrentGame = () => {
+      const currentGameSnapshot = currentGameSnapshotRef.current
+      if (!currentGameSnapshot) return
+
+      writeSavedGame({
+        ...currentGameSnapshot,
+        savedAt: Date.now(),
+      })
+    }
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        persistCurrentGame()
+      }
+    }
+
+    window.addEventListener('pagehide', persistCurrentGame)
+    window.addEventListener('beforeunload', persistCurrentGame)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    return () => {
+      window.removeEventListener('pagehide', persistCurrentGame)
+      window.removeEventListener('beforeunload', persistCurrentGame)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (result === 'playing') return
+
+    clearSavedGame()
+    currentGameSnapshotRef.current = null
+    setSavedGame(null)
+  }, [result])
 
   useEffect(() => {
     if (result === 'playing' || !hasStarted || !playerName || hasSavedGameOverRef.current) return
@@ -1452,6 +1673,11 @@ export default function PikachuPage() {
                   disabled={isInstalled}
                 />
                 <ArcadeButton
+                  icon={House}
+                  onClick={handleBackHome}
+                  disabled={!hasStarted || result !== 'playing' || isLevelCompleteWaiting}
+                />
+                <ArcadeButton
                   icon={Lightbulb}
                   onClick={handleHint}
                   disabled={!canInteract || hintsLeft <= 0}
@@ -1468,9 +1694,9 @@ export default function PikachuPage() {
                 icon={hasStarted && isRunning ? Pause : Play}
                 onClick={handleToggleGameRunning}
                 disabled={result !== 'playing' || isLevelCompleteWaiting}
-                label={!hasStarted && result !== 'playing' ? 'Bắt đầu' : isRunning ? 'Tạm Dừng' : 'Tiếp Tục'}
+                label={playButtonLabel}
               />
-              <ArcadeButton icon={RotateCcw} onClick={() => resetGame()} label="Chơi lại" />
+              <ArcadeButton icon={RotateCcw} onClick={() => handleRequestRestart()} label="Chơi lại" />
 
               <div className="mt-3 rounded-md border border-[#995018]/70 bg-[#2a0e05]/70 p-1">
                 <div className="text-[10px] font-black uppercase text-[#ffc84a]/70">Trạng Thái</div>
@@ -1494,7 +1720,7 @@ export default function PikachuPage() {
                   <SideStat label="Luot Doi" value={String(shufflesLeft)} />
                 </div>
               </div>
-              <ArcadeButton icon={RefreshCw} onClick={handleReload} label="Reload Game" />
+              <ArcadeButton icon={RefreshCw} onClick={handleRequestReload} label="Reload Game" />
             </aside>
 
             <section className={`pikachu-board-stage relative min-w-0 ${openSidebar ? 'basis-11/12' : 'basis-12/12'} bg-[#2b0d05]/60 transition-all duration-200`}>
@@ -1605,7 +1831,7 @@ export default function PikachuPage() {
                               onClick={handleToggleGameRunning}
                             >
                               <Play className="h-4 w-4" aria-hidden="true" />
-                              {!hasStarted && result !== 'playing' ? 'Bắt đầu' : isRunning ? 'Tạm Dừng' : 'Tiếp Tục'}
+                              {playButtonLabel}
                             </button>
                           </div>
                         </div>
@@ -1703,7 +1929,7 @@ export default function PikachuPage() {
                         <button
                           type="button"
                           className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-[#ffdd2f]/35 bg-[#2a0e05]/88 px-4 text-sm font-semibold text-[#fff1a6] shadow-sm transition hover:bg-[#3a1609]"
-                          onClick={() => resetGame()}
+                          onClick={() => handleRequestRestart()}
                         >
                           <RotateCcw className="h-4 w-4" aria-hidden="true" />
                           Chơi lại
@@ -1741,7 +1967,7 @@ export default function PikachuPage() {
                       <button
                         type="button"
                         className="mt-4 inline-flex h-10 items-center justify-center gap-2 rounded-md bg-[#f97316] px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[#ea580c]"
-                        onClick={() => resetGame(difficultyId, true)}
+                        onClick={() => handleRequestRestart(true)}
                       >
                         <RotateCcw className="h-4 w-4" aria-hidden="true" />
                         Choi lai
@@ -1766,6 +1992,52 @@ export default function PikachuPage() {
                         <Shuffle className="h-4 w-4" aria-hidden="true" />
                         Xáo lại
                       </button>
+                    </div>
+                  </div>
+                ) : null}
+                {confirmAction ? (
+                  <div
+                    className="pikachu-modal-backdrop absolute inset-0 z-40 flex items-center justify-center rounded-lg p-4"
+                    role="dialog"
+                    aria-modal="true"
+                  >
+                    <div className="pikachu-glow-modal w-full max-w-sm rounded-lg border border-[#ffdd2f]/40 bg-[#351609] p-5 text-center shadow-xl">
+                      <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-md bg-[#4a1b0c] text-[#ffdd2f]">
+                        {confirmAction.type === 'restart' ? (
+                          <RotateCcw className="h-6 w-6" aria-hidden="true" />
+                        ) : (
+                          <RefreshCw className="h-6 w-6" aria-hidden="true" />
+                        )}
+                      </div>
+                      <h2 className="text-xl font-bold text-[#ffdd2f]">
+                        {confirmAction.type === 'restart' ? 'Chơi lại?' : 'Reload game?'}
+                      </h2>
+                      <p className="mt-2 text-sm font-medium text-[#ffd24a]/85">
+                        {confirmAction.type === 'restart'
+                          ? 'Bạn có chắc muốn chơi lại? Ván hiện tại sẽ bắt đầu lại từ đầu.'
+                          : 'Bạn có chắc muốn reload game? Trang sẽ được tải lại ngay.'}
+                      </p>
+                      <div className="mt-4 grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          className="inline-flex h-10 items-center justify-center rounded-md border border-[#ffdd2f]/35 bg-[#2a0e05]/88 px-4 text-sm font-semibold text-[#fff1a6] shadow-sm transition hover:bg-[#3a1609]"
+                          onClick={handleCloseConfirm}
+                        >
+                          Hủy
+                        </button>
+                        <button
+                          type="button"
+                          className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-[#f97316] px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[#ea580c]"
+                          onClick={handleConfirmAction}
+                        >
+                          {confirmAction.type === 'restart' ? (
+                            <RotateCcw className="h-4 w-4" aria-hidden="true" />
+                          ) : (
+                            <RefreshCw className="h-4 w-4" aria-hidden="true" />
+                          )}
+                          Xác nhận
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ) : null}
