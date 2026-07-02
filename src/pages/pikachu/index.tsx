@@ -1,808 +1,83 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { LucideIcon } from 'lucide-react'
 import {
-  Apple,
-  Banana,
-  Candy,
-  Cherry,
+  ChevronLeft,
+  ChevronRight,
   Clock3,
-  Crown,
   Download,
-  Fish,
-  Flower2,
-  Gem,
-  Grape,
-  Heart,
   House,
-  IceCreamBowl,
-  Leaf,
   Lightbulb,
-  Moon,
   Pause,
   Play,
   RefreshCw,
   RotateCcw,
-  Shell,
+  Settings,
   Shuffle,
-  Star,
-  Sun,
   Trophy,
-  Zap,
-  Menu
 } from 'lucide-react'
 
 import { pikachuService, type PikachuLeaderboardEntry } from '@/services/pikachu.service'
 
-type TileSymbol = {
-  id: string
-  label: string
-  Icon: LucideIcon
-  imageSrc?: string
-  color: string
-  bg: string
-  ring: string
-  glow: string
-}
-
-type Tile = {
-  id: string
-  symbolId: string
-}
-
-type Board = Array<Array<Tile | null>>
-
-type Position = {
-  row: number
-  col: number
-}
-
-type PathPoint = {
-  row: number
-  col: number
-}
-
-type MatchPair = {
-  first: Position
-  second: Position
-}
-
-type SearchNode = {
-  row: number
-  col: number
-  direction: number | null
-  turns: number
-  path: PathPoint[]
-}
-
-type DifficultyConfig = {
-  id: 'easy' | 'classic' | 'hard'
-  label: string
-  rows: number
-  cols: number
-  timeLimit: number
-  hints: number
-  shuffles: number
-  symbolCount: number
-}
-
-type DifficultyId = DifficultyConfig['id']
-type ArrangementId =
-  | 'none'
-  | 'down'
-  | 'up'
-  | 'left'
-  | 'right'
-  | 'center-vertical'
-  | 'edges-vertical'
-  | 'center-horizontal'
-  | 'edges-horizontal'
-type GameResult = 'playing' | 'won' | 'lost'
-type LevelConfig = {
-  level: number
-  title: string
-  shortTitle: string
-  arrangement: ArrangementId
-}
-
-type BeforeInstallPromptEvent = Event & {
-  prompt: () => Promise<void>
-  userChoice: Promise<{
-    outcome: 'accepted' | 'dismissed'
-    platform: string
-  }>
-}
-
-type SavedGameState = {
-  result: 'playing'
-  difficultyId: DifficultyId
-  currentLevel: number
-  board: Board
-  score: number
-  combo: number
-  mistakes: number
-  hintsLeft: number
-  shufflesLeft: number
-  timeLeft: number
-  playerName: string
-  savedAt: number
-}
-
-type ConfirmAction = { type: 'restart'; autoStart: boolean } | { type: 'reload' }
-
-const HIGH_SCORE_KEY = 'mins-pikachu-connect-high-score'
-const HIGHEST_LEVEL_KEY = 'mins-pikachu-connect-highest-level'
-const PLAYER_NAME_KEY = 'mins-pikachu-player-name'
-const SAVED_GAME_KEY = 'mins-pikachu-connect-saved-game'
-const DEFAULT_DIFFICULTY_ID: DifficultyId = 'classic'
-const PIKACHU_IMAGE_COUNT = 36
-const PIKACHU_IMAGE_REPEAT = 4
-const BOARD_ROWS = 9
-const BOARD_COLS = (PIKACHU_IMAGE_COUNT * PIKACHU_IMAGE_REPEAT) / BOARD_ROWS
-const PIKACHU_IMAGE_PATH = '/images/pikachu'
-
-const FALLBACK_TILE_ICONS: LucideIcon[] = [
-  Apple,
-  Banana,
-  Cherry,
-  Grape,
-  Gem,
-  Star,
-  Heart,
-  Sun,
-  Moon,
-  Leaf,
-  Candy,
-  Zap,
-  Flower2,
-  Shell,
-  Crown,
-  Fish,
-  IceCreamBowl,
-]
-
-const TILE_PALETTE = [
-  { color: '#b91c1c', bg: '#fff1f2', ring: 'rgba(244, 63, 94, 0.45)', glow: 'rgba(244, 63, 94, 0.22)' },
-  { color: '#b7791f', bg: '#fef9c3', ring: 'rgba(234, 179, 8, 0.48)', glow: 'rgba(234, 179, 8, 0.24)' },
-  { color: '#7e22ce', bg: '#f3e8ff', ring: 'rgba(147, 51, 234, 0.4)', glow: 'rgba(147, 51, 234, 0.2)' },
-  { color: '#0f766e', bg: '#ccfbf1', ring: 'rgba(20, 184, 166, 0.45)', glow: 'rgba(20, 184, 166, 0.22)' },
-  { color: '#c2410c', bg: '#ffedd5', ring: 'rgba(249, 115, 22, 0.46)', glow: 'rgba(249, 115, 22, 0.24)' },
-  { color: '#db2777', bg: '#fce7f3', ring: 'rgba(219, 39, 119, 0.42)', glow: 'rgba(219, 39, 119, 0.2)' },
-  { color: '#4338ca', bg: '#e0e7ff', ring: 'rgba(99, 102, 241, 0.42)', glow: 'rgba(99, 102, 241, 0.22)' },
-  { color: '#15803d', bg: '#dcfce7', ring: 'rgba(34, 197, 94, 0.45)', glow: 'rgba(34, 197, 94, 0.22)' },
-  { color: '#0369a1', bg: '#e0f2fe', ring: 'rgba(14, 165, 233, 0.45)', glow: 'rgba(14, 165, 233, 0.22)' },
-  { color: '#92400e', bg: '#fef3c7', ring: 'rgba(217, 119, 6, 0.45)', glow: 'rgba(217, 119, 6, 0.22)' },
-]
-
-const TILE_SYMBOLS: TileSymbol[] = Array.from({ length: PIKACHU_IMAGE_COUNT }, (_, index) => {
-  const pieceNumber = index + 1
-  const palette = TILE_PALETTE[index % TILE_PALETTE.length]
-
-  return {
-    id: `piece-${pieceNumber}`,
-    label: `Piece ${pieceNumber}`,
-    Icon: FALLBACK_TILE_ICONS[index % FALLBACK_TILE_ICONS.length],
-    imageSrc: `${PIKACHU_IMAGE_PATH}/pieces${pieceNumber}.png`,
-    ...palette,
-  }
-})
-
-const DIFFICULTIES: DifficultyConfig[] = [
-  {
-    id: 'easy',
-    label: 'De',
-    rows: BOARD_ROWS,
-    cols: BOARD_COLS,
-    timeLimit: 420,
-    hints: 4,
-    shuffles: 20,
-    symbolCount: PIKACHU_IMAGE_COUNT,
-  },
-  {
-    id: 'classic',
-    label: 'Co dien',
-    rows: BOARD_ROWS,
-    cols: BOARD_COLS,
-    timeLimit: 720,
-    hints: 3,
-    shuffles: 20,
-    symbolCount: PIKACHU_IMAGE_COUNT,
-  },
-  {
-    id: 'hard',
-    label: 'Kho',
-    rows: BOARD_ROWS,
-    cols: BOARD_COLS,
-    timeLimit: 300,
-    hints: 3,
-    shuffles: 20,
-    symbolCount: PIKACHU_IMAGE_COUNT,
-  },
-]
-
-const LEVELS: LevelConfig[] = [
-  { level: 1, title: 'Dung yen', shortTitle: 'Dung yen', arrangement: 'none' },
-  { level: 2, title: 'Don xuong duoi', shortTitle: 'Don xuong', arrangement: 'down' },
-  { level: 3, title: 'Don len tren', shortTitle: 'Don len', arrangement: 'up' },
-  { level: 4, title: 'Don sang trai', shortTitle: 'Don trai', arrangement: 'left' },
-  { level: 5, title: 'Don sang phai', shortTitle: 'Don phai', arrangement: 'right' },
-  { level: 6, title: 'Don vao giua doc', shortTitle: 'Vao giua doc', arrangement: 'center-vertical' },
-  { level: 7, title: 'Don ra hai ben doc', shortTitle: 'Ra bien doc', arrangement: 'edges-vertical' },
-  { level: 8, title: 'Don vao giua ngang', shortTitle: 'Vao giua ngang', arrangement: 'center-horizontal' },
-  { level: 9, title: 'Don ra hai ben ngang', shortTitle: 'Ra bien ngang', arrangement: 'edges-horizontal' },
-]
-
-const DIRECTIONS = [
-  { row: -1, col: 0 },
-  { row: 0, col: 1 },
-  { row: 1, col: 0 },
-  { row: 0, col: -1 },
-] as const
-
-const symbolById = TILE_SYMBOLS.reduce<Record<string, TileSymbol>>((symbols, symbol) => {
-  symbols[symbol.id] = symbol
-  return symbols
-}, {})
-
-function getDifficulty(id: DifficultyId) {
-  return DIFFICULTIES.find((difficulty) => difficulty.id === id) || DIFFICULTIES[1]
-}
-
-function getLevelConfig(level: number) {
-  return LEVELS.find((config) => config.level === level) || LEVELS[0]
-}
-
-function shuffleList<T>(source: T[]) {
-  const list = [...source]
-
-  for (let index = list.length - 1; index > 0; index -= 1) {
-    const swapIndex = Math.floor(Math.random() * (index + 1))
-    const item = list[index]
-    list[index] = list[swapIndex]
-    list[swapIndex] = item
-  }
-
-  return list
-}
-
-function makeEmptyBoard(rows: number, cols: number): Board {
-  return Array.from({ length: rows }, () => Array.from({ length: cols }, (): Tile | null => null))
-}
-
-function createBoard(config: DifficultyConfig): Board {
-  const totalTiles = config.rows * config.cols
-  const pairCount = totalTiles / 2
-  const symbols = TILE_SYMBOLS.slice(0, config.symbolCount)
-  const tiles: Tile[] = []
-
-  for (let pairIndex = 0; pairIndex < pairCount; pairIndex += 1) {
-    const symbol = symbols[pairIndex % symbols.length]
-
-    tiles.push(
-      { id: `${symbol.id}-${pairIndex}-a`, symbolId: symbol.id },
-      { id: `${symbol.id}-${pairIndex}-b`, symbolId: symbol.id },
-    )
-  }
-
-  for (let attempt = 0; attempt < 120; attempt += 1) {
-    const board = tilesToBoard(shuffleList(tiles), config.rows, config.cols)
-
-    if (findAvailablePair(board)) {
-      return board
-    }
-  }
-
-  return tilesToBoard(shuffleList(tiles), config.rows, config.cols)
-}
-
-function tilesToBoard(tiles: Tile[], rows: number, cols: number): Board {
-  const board = makeEmptyBoard(rows, cols)
-
-  tiles.forEach((tile, index) => {
-    const row = Math.floor(index / cols)
-    const col = index % cols
-    board[row][col] = tile
-  })
-
-  return board
-}
-
-function cloneBoard(board: Board): Board {
-  return board.map((row) => [...row])
-}
-
-function getBoardSize(board: Board) {
-  return {
-    rows: board.length,
-    cols: board[0]?.length || 0,
-  }
-}
-
-function getTile(board: Board, position: Position) {
-  return board[position.row]?.[position.col] || null
-}
-
-function samePosition(first: Position | PathPoint, second: Position | PathPoint) {
-  return first.row === second.row && first.col === second.col
-}
-
-function isAdjacent(first: Position, second: Position) {
-  return Math.abs(first.row - second.row) + Math.abs(first.col - second.col) === 1
-}
-
-function getMatchKey(first: Position, second: Position) {
-  const firstKey = `${first.row}:${first.col}`
-  const secondKey = `${second.row}:${second.col}`
-
-  return firstKey < secondKey ? `${firstKey}|${secondKey}` : `${secondKey}|${firstKey}`
-}
-
-function isInsideExtended(row: number, col: number, rows: number, cols: number) {
-  return row >= 0 && col >= 0 && row <= rows + 1 && col <= cols + 1
-}
-
-function canStep(board: Board, row: number, col: number, start: PathPoint, target: PathPoint) {
-  if (samePosition({ row, col }, start) || samePosition({ row, col }, target)) {
-    return true
-  }
-
-  const { rows, cols } = getBoardSize(board)
-  const boardRow = row - 1
-  const boardCol = col - 1
-
-  if (boardRow < 0 || boardCol < 0 || boardRow >= rows || boardCol >= cols) {
-    return true
-  }
-
-  return board[boardRow][boardCol] === null
-}
-
-function simplifyPath(path: PathPoint[]) {
-  return path.reduce<PathPoint[]>((points, point) => {
-    if (points.length < 2) {
-      return [...points, point]
-    }
-
-    const previous = points[points.length - 1]
-    const beforePrevious = points[points.length - 2]
-    const sameRow = beforePrevious.row === previous.row && previous.row === point.row
-    const sameCol = beforePrevious.col === previous.col && previous.col === point.col
-
-    if (sameRow || sameCol) {
-      return [...points.slice(0, -1), point]
-    }
-
-    return [...points, point]
-  }, [])
-}
-
-function findPath(board: Board, first: Position, second: Position): PathPoint[] | null {
-  if (samePosition(first, second)) return null
-
-  const firstTile = getTile(board, first)
-  const secondTile = getTile(board, second)
-
-  if (!firstTile || !secondTile || firstTile.symbolId !== secondTile.symbolId) {
-    return null
-  }
-
-  const { rows, cols } = getBoardSize(board)
-  const start = { row: first.row + 1, col: first.col + 1 }
-  const target = { row: second.row + 1, col: second.col + 1 }
-
-  if (isAdjacent(first, second)) {
-    return [start, target]
-  }
-
-  const queue: SearchNode[] = [{ ...start, direction: null, turns: 0, path: [start] }]
-  const best = new Map<string, number>()
-  let queueIndex = 0
-
-  while (queueIndex < queue.length) {
-    const node = queue[queueIndex]
-    queueIndex += 1
-
-    for (let direction = 0; direction < DIRECTIONS.length; direction += 1) {
-      const delta = DIRECTIONS[direction]
-      const nextRow = node.row + delta.row
-      const nextCol = node.col + delta.col
-      const nextTurns = node.direction === null || node.direction === direction ? node.turns : node.turns + 1
-
-      if (nextTurns > 2 || !isInsideExtended(nextRow, nextCol, rows, cols)) {
-        continue
-      }
-
-      if (!canStep(board, nextRow, nextCol, start, target)) {
-        continue
-      }
-
-      const key = `${nextRow}:${nextCol}:${direction}`
-      const previousTurns = best.get(key)
-
-      if (previousTurns !== undefined && previousTurns <= nextTurns) {
-        continue
-      }
-
-      const nextPath = [...node.path, { row: nextRow, col: nextCol }]
-      best.set(key, nextTurns)
-
-      if (samePosition({ row: nextRow, col: nextCol }, target)) {
-        return simplifyPath(nextPath)
-      }
-
-      queue.push({
-        row: nextRow,
-        col: nextCol,
-        direction,
-        turns: nextTurns,
-        path: nextPath,
-      })
-    }
-  }
-
-  return null
-}
-
-function countTiles(board: Board) {
-  return board.reduce((total, row) => total + row.filter(Boolean).length, 0)
-}
-
-function getRemainingTiles(board: Board) {
-  const tiles: Tile[] = []
-
-  board.forEach((row) => {
-    row.forEach((tile) => {
-      if (tile) tiles.push(tile)
-    })
-  })
-
-  return tiles
-}
-
-function findPlayablePairs(board: Board, limit = Infinity): MatchPair[] {
-  const buckets = new Map<string, Position[]>()
-  const matches: MatchPair[] = []
-
-  board.forEach((row, rowIndex) => {
-    row.forEach((tile, colIndex) => {
-      if (!tile) return
-
-      const bucket = buckets.get(tile.symbolId) || []
-      bucket.push({ row: rowIndex, col: colIndex })
-      buckets.set(tile.symbolId, bucket)
-    })
-  })
-
-  for (const positions of buckets.values()) {
-    for (let firstIndex = 0; firstIndex < positions.length - 1; firstIndex += 1) {
-      for (let secondIndex = firstIndex + 1; secondIndex < positions.length; secondIndex += 1) {
-        const first = positions[firstIndex]
-        const second = positions[secondIndex]
-        const path = findPath(board, first, second)
-
-        if (path) {
-          matches.push({ first, second })
-
-          if (matches.length >= limit) {
-            return matches
-          }
-        }
-      }
-    }
-  }
-
-  return matches
-}
-
-function findAvailablePair(board: Board): MatchPair | null {
-  return findPlayablePairs(board, 1)[0] || null
-}
-
-function shuffleTileSymbols(board: Board): Board {
-  const symbolIds = shuffleList(getRemainingTiles(board).map((tile) => tile.symbolId))
-  let symbolIndex = 0
-
-  return board.map((row) =>
-    row.map((tile) => {
-      if (!tile) return null
-
-      const symbolId = symbolIds[symbolIndex]
-      symbolIndex += 1
-
-      return { ...tile, symbolId }
-    }),
-  )
-}
-
-function shuffleSymbolsUntilPlayable(board: Board) {
-  let nextBoard = board
-  let nextMatch: MatchPair | null = null
-
-  for (let attempt = 0; attempt < 120; attempt += 1) {
-    nextBoard = shuffleTileSymbols(board)
-    nextMatch = findAvailablePair(nextBoard)
-
-    if (nextMatch || countTiles(nextBoard) === 0) {
-      return { board: nextBoard, match: nextMatch }
-    }
-  }
-
-  return { board: nextBoard, match: nextMatch }
-}
-
-function applyArrangement(board: Board, arrangement: ArrangementId): Board {
-  if (arrangement === 'none') return cloneBoard(board)
-
-  const { rows, cols } = getBoardSize(board)
-
-  if (
-    arrangement === 'left' ||
-    arrangement === 'right' ||
-    arrangement === 'center-vertical' ||
-    arrangement === 'edges-vertical'
-  ) {
-    return board.map((row) => {
-      const tiles = row.filter(Boolean) as Tile[]
-      const nextRow = Array.from({ length: cols }, (): Tile | null => null)
-
-      if (arrangement === 'left') {
-        tiles.forEach((tile, index) => {
-          nextRow[index] = tile
-        })
-
-        return nextRow
-      }
-
-      if (arrangement === 'right') {
-        tiles.forEach((tile, index) => {
-          nextRow[cols - tiles.length + index] = tile
-        })
-
-        return nextRow
-      }
-
-      if (arrangement === 'center-vertical') {
-        const startCol = Math.floor((cols - tiles.length) / 2)
-
-        tiles.forEach((tile, index) => {
-          nextRow[startCol + index] = tile
-        })
-
-        return nextRow
-      }
-
-      const leftCount = Math.ceil(tiles.length / 2)
-      const rightTiles = tiles.slice(leftCount)
-
-      tiles.slice(0, leftCount).forEach((tile, index) => {
-        nextRow[index] = tile
-      })
-
-      rightTiles.forEach((tile, index) => {
-        nextRow[cols - rightTiles.length + index] = tile
-      })
-
-      return nextRow
-    })
-  }
-
-  const nextBoard = makeEmptyBoard(rows, cols)
-
-  for (let col = 0; col < cols; col += 1) {
-    const tiles: Tile[] = []
-
-    for (let row = 0; row < rows; row += 1) {
-      const tile = board[row][col]
-      if (tile) tiles.push(tile)
-    }
-
-    if (arrangement === 'up') {
-      tiles.forEach((tile, index) => {
-        nextBoard[index][col] = tile
-      })
-
-      continue
-    }
-
-    if (arrangement === 'down') {
-      tiles.forEach((tile, index) => {
-        nextBoard[rows - tiles.length + index][col] = tile
-      })
-
-      continue
-    }
-
-    if (arrangement === 'center-horizontal') {
-      const startRow = Math.floor((rows - tiles.length) / 2)
-
-      tiles.forEach((tile, index) => {
-        nextBoard[startRow + index][col] = tile
-      })
-
-      continue
-    }
-
-    const topCount = Math.ceil(tiles.length / 2)
-    const bottomTiles = tiles.slice(topCount)
-
-    tiles.slice(0, topCount).forEach((tile, index) => {
-      nextBoard[index][col] = tile
-    })
-
-    bottomTiles.forEach((tile, index) => {
-      nextBoard[rows - bottomTiles.length + index][col] = tile
-    })
-  }
-
-  return nextBoard
-}
-
-function removeTiles(board: Board, first: Position, second: Position): Board {
-  const nextBoard = cloneBoard(board)
-  nextBoard[first.row][first.col] = null
-  nextBoard[second.row][second.col] = null
-  return nextBoard
-}
-
-function formatTime(seconds: number) {
-  const minutes = Math.floor(seconds / 60)
-  const remainingSeconds = seconds % 60
-
-  return `${String(minutes).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}`
-}
-
-function getNoPairsStatus(canShuffle: boolean) {
-  return canShuffle ? 'Khong con cap nao, hay xao tron lai' : 'Khong con cap nao va da het luot xao'
-}
-
-function isStandaloneDisplayMode() {
-  if (typeof window === 'undefined') return false
-
-  const navigatorWithStandalone = window.navigator as Navigator & {
-    standalone?: boolean
-  }
-
-  return window.matchMedia('(display-mode: standalone)').matches || navigatorWithStandalone.standalone === true
-}
-
-function readHighScore() {
-  if (typeof window === 'undefined') return 0
-
-  const savedScore = window.localStorage.getItem(HIGH_SCORE_KEY)
-  const parsedScore = savedScore ? Number(savedScore) : 0
-
-  return Number.isFinite(parsedScore) ? parsedScore : 0
-}
-
-function writeHighScore(score: number) {
-  if (typeof window === 'undefined') return
-
-  window.localStorage.setItem(HIGH_SCORE_KEY, String(score))
-}
-
-function readHighestLevel() {
-  if (typeof window === 'undefined') return 1
-
-  const savedLevel = window.localStorage.getItem(HIGHEST_LEVEL_KEY)
-  const parsedLevel = savedLevel ? Number(savedLevel) : 1
-
-  if (!Number.isFinite(parsedLevel)) return 1
-
-  return Math.max(1, Math.min(LEVELS.length, Math.trunc(parsedLevel)))
-}
-
-function writeHighestLevel(level: number) {
-  if (typeof window === 'undefined') return
-
-  window.localStorage.setItem(HIGHEST_LEVEL_KEY, String(level))
-}
-
-function readPlayerName() {
-  if (typeof window === 'undefined') return ''
-
-  return (window.localStorage.getItem(PLAYER_NAME_KEY) || '').trim()
-}
-
-function writePlayerName(playerName: string) {
-  if (typeof window === 'undefined') return
-
-  window.localStorage.setItem(PLAYER_NAME_KEY, playerName.trim())
-}
-
-function isDifficultyId(value: unknown): value is DifficultyId {
-  return DIFFICULTIES.some((difficulty) => difficulty.id === value)
-}
-
-function isSavedBoard(value: unknown): value is Board {
-  return (
-    Array.isArray(value) &&
-    value.every((row) =>
-      Array.isArray(row) &&
-      row.every(
-        (tile) =>
-          tile === null ||
-          (typeof tile === 'object' &&
-            tile !== null &&
-            typeof (tile as Tile).id === 'string' &&
-            typeof (tile as Tile).symbolId === 'string'),
-      ),
-    )
-  )
-}
-
-function toInteger(value: unknown, fallback: number) {
-  return typeof value === 'number' && Number.isFinite(value) ? Math.trunc(value) : fallback
-}
-
-function readSavedGame(): SavedGameState | null {
-  if (typeof window === 'undefined') return null
-
-  const savedGame = window.localStorage.getItem(SAVED_GAME_KEY)
-  if (!savedGame) return null
-
-  try {
-    const parsed = JSON.parse(savedGame) as unknown
-
-    if (typeof parsed !== 'object' || parsed === null) {
-      window.localStorage.removeItem(SAVED_GAME_KEY)
-      return null
-    }
-
-    const draft = parsed as Partial<SavedGameState>
-
-    if (draft.result !== 'playing' || !isDifficultyId(draft.difficultyId) || !isSavedBoard(draft.board)) {
-      window.localStorage.removeItem(SAVED_GAME_KEY)
-      return null
-    }
-
-    const difficulty = getDifficulty(draft.difficultyId)
-    const hasExpectedBoardSize =
-      draft.board.length === difficulty.rows && draft.board.every((row) => row.length === difficulty.cols)
-
-    if (!hasExpectedBoardSize) {
-      window.localStorage.removeItem(SAVED_GAME_KEY)
-      return null
-    }
-
-    return {
-      result: 'playing',
-      difficultyId: draft.difficultyId,
-      currentLevel: Math.max(1, Math.min(LEVELS.length, toInteger(draft.currentLevel, 1))),
-      board: draft.board,
-      score: Math.max(0, toInteger(draft.score, 0)),
-      combo: Math.max(0, toInteger(draft.combo, 0)),
-      mistakes: Math.max(0, toInteger(draft.mistakes, 0)),
-      hintsLeft: Math.max(0, toInteger(draft.hintsLeft, difficulty.hints)),
-      shufflesLeft: Math.max(0, toInteger(draft.shufflesLeft, difficulty.shuffles)),
-      timeLeft: Math.max(0, Math.min(difficulty.timeLimit, toInteger(draft.timeLeft, difficulty.timeLimit))),
-      playerName: typeof draft.playerName === 'string' ? draft.playerName : '',
-      savedAt: Math.max(0, toInteger(draft.savedAt, Date.now())),
-    }
-  } catch {
-    window.localStorage.removeItem(SAVED_GAME_KEY)
-    return null
-  }
-}
-
-function writeSavedGame(savedGame: SavedGameState) {
-  if (typeof window === 'undefined') return
-
-  window.localStorage.setItem(SAVED_GAME_KEY, JSON.stringify(savedGame))
-}
-
-function clearSavedGame() {
-  if (typeof window === 'undefined') return
-
-  window.localStorage.removeItem(SAVED_GAME_KEY)
-}
+import { DIFFICULTIES, LEVELS, getDifficulty, getLevelConfig } from './constants'
+import './pikachu.css'
+import { ArcadeButton } from './components/ArcadeButton'
+import { PikachuBoard } from './components/PikachuBoard'
+import { ActionModal, DifficultyModal, PlayerNameModal, SettingsModal, StartOverlay } from './components/PikachuOverlays'
+import { SideStat } from './components/SideStat'
+import { usePikachuAudio } from './hooks/usePikachuAudio'
+import type {
+  BeforeInstallPromptEvent,
+  ConfirmAction,
+  DifficultyId,
+  GameResult,
+  GameSettings,
+  MatchPair,
+  Position,
+  SavedGameState,
+  SettingsTab,
+} from './types'
+import { isStandaloneDisplayMode } from './utils/browser'
+import {
+  applyArrangement,
+  countTiles,
+  createBoard,
+  findPlayablePairs,
+  formatTime,
+  getMatchKey,
+  getNoPairsStatus,
+  getTile,
+  removeTiles,
+  samePosition,
+  shuffleSymbolsUntilPlayable,
+} from './utils/board'
+import {
+  clampPercentage,
+  clearSavedGame,
+  readGameSettings,
+  readHighScore,
+  readHighestLevel,
+  readPlayerName,
+  readSavedGame,
+  writeGameSettings,
+  writeHighScore,
+  writeHighestLevel,
+  writePlayerName,
+  writeSavedGame,
+} from './utils/storage'
 
 export default function PikachuPage() {
-  const defaultDifficulty = getDifficulty(DEFAULT_DIFFICULTY_ID)
+  const [gameSettings, setGameSettings] = useState<GameSettings>(readGameSettings)
+  const [showSettingsModal, setShowSettingsModal] = useState(false)
+  const [showDifficultyModal, setShowDifficultyModal] = useState(false)
+  const [pendingDifficultyId, setPendingDifficultyId] = useState<DifficultyId | null>(null)
+  const [activeSettingsTab, setActiveSettingsTab] = useState<SettingsTab>('audio')
+  const defaultDifficulty = getDifficulty(gameSettings.difficultyId)
   const [savedGame, setSavedGame] = useState<SavedGameState | null>(readSavedGame)
   const initialDifficulty = savedGame ? getDifficulty(savedGame.difficultyId) : defaultDifficulty
-  const [difficultyId, setDifficultyId] = useState<DifficultyId>(savedGame?.difficultyId || DEFAULT_DIFFICULTY_ID)
+  const [difficultyId, setDifficultyId] = useState<DifficultyId>(savedGame?.difficultyId || gameSettings.difficultyId)
   const [currentLevel, setCurrentLevel] = useState(savedGame?.currentLevel || 1)
   const [board, setBoard] = useState(() => savedGame?.board || createBoard(initialDifficulty))
   const [selected, setSelected] = useState<Position | null>(null)
+  const [inactivePositions, setInactivePositions] = useState<Position[]>([])
   const [hint, setHint] = useState<MatchPair | null>(null)
   const [playerName, setPlayerName] = useState(readPlayerName)
   const [playerNameDraft, setPlayerNameDraft] = useState(readPlayerName)
@@ -823,20 +98,26 @@ export default function PikachuPage() {
   const [status, setStatus] = useState(savedGame ? 'Nhấn Tiếp tục để chơi' : 'Bắt đầu chơi')
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null)
   const [isInstalled, setIsInstalled] = useState(false)
-  const [isFullscreen, setIsFullscreen] = useState(false)
   const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null)
   const [leaderboard, setLeaderboard] = useState<PikachuLeaderboardEntry[]>([])
   const [isLeaderboardLoading, setIsLeaderboardLoading] = useState(false)
   const [leaderboardError, setLeaderboardError] = useState<string | null>(null)
+  const [openSidebar, setOpenSidebar] = useState(true)
   const hasSavedGameOverRef = useRef(false)
   const currentGameSnapshotRef = useRef<SavedGameState | null>(null)
+  const wrongSelectionTimerRef = useRef<number | null>(null)
+
   const difficulty = useMemo(() => getDifficulty(difficultyId), [difficultyId])
+  const pendingDifficulty = useMemo(
+    () => (pendingDifficultyId ? getDifficulty(pendingDifficultyId) : null),
+    [pendingDifficultyId],
+  )
   const currentLevelConfig = useMemo(() => getLevelConfig(currentLevel), [currentLevel])
   const remainingTiles = useMemo(() => countTiles(board), [board])
-
   const timeProgress = Math.max(0, Math.min(100, (timeLeft / difficulty.timeLimit) * 100))
   const playablePairs = useMemo(() => findPlayablePairs(board), [board])
   const playablePairCount = playablePairs.length
+  const isActionModalOpen = showSettingsModal || showDifficultyModal || pendingDifficulty !== null || confirmAction !== null
   const playablePairLookup = useMemo(() => {
     const lookup = new Map<string, MatchPair>()
 
@@ -847,7 +128,7 @@ export default function PikachuPage() {
     return lookup
   }, [playablePairs])
   const needsShuffle = remainingTiles > 0 && playablePairCount === 0
-  const canInteract = hasStarted && result === 'playing' && isRunning
+  const canInteract = hasStarted && result === 'playing' && isRunning && !isActionModalOpen
   const isLevelCompleteWaiting = completedLevel !== null
   const isPaused = hasStarted && result === 'playing' && !isRunning && !isLevelCompleteWaiting
   const showStartOverlay = result === 'playing' && !hasStarted
@@ -855,6 +136,10 @@ export default function PikachuPage() {
   const shouldHideBoard = showStartOverlay || showPauseOverlay || isLevelCompleteWaiting
   const showPlayerIdentityDialog = showPlayerNameDialog || !playerName
   const playButtonLabel = !hasStarted ? (savedGame ? 'Tiếp tục' : 'Bắt đầu') : isRunning ? 'Tạm Dừng' : 'Tiếp tục'
+
+  const { playSoundEffect, pauseBackgroundMusic, resumeAudioContext } = usePikachuAudio({
+    gameSettings,
+  })
 
   const loadLeaderboard = useCallback(() => {
     setIsLeaderboardLoading(true)
@@ -873,31 +158,63 @@ export default function PikachuPage() {
       })
   }, [])
 
-  const resetGame = useCallback((nextDifficultyId = difficultyId, autoStart = hasStarted) => {
-    const nextDifficulty = getDifficulty(nextDifficultyId)
+  const resetGame = useCallback(
+    (nextDifficultyId = difficultyId, autoStart = hasStarted) => {
+      const nextDifficulty = getDifficulty(nextDifficultyId)
 
-    clearSavedGame()
-    currentGameSnapshotRef.current = null
-    setSavedGame(null)
-    setDifficultyId(nextDifficulty.id)
-    setCurrentLevel(1)
-    setBoard(createBoard(nextDifficulty))
-    setSelected(null)
-    setHint(null)
-    setScore(0)
-    setCombo(0)
-    setMistakes(0)
-    setHintsLeft(nextDifficulty.hints)
-    setShufflesLeft(nextDifficulty.shuffles)
-    setTimeLeft(nextDifficulty.timeLimit)
-    setHasStarted(autoStart)
-    setIsRunning(autoStart)
-    setResult('playing')
-    setShowNoPairsModal(false)
-    setCompletedLevel(null)
-    hasSavedGameOverRef.current = false
-    setStatus(autoStart ? `Màn 1: ${getLevelConfig(1).title}` : 'Nhấn Bắt đầu để chơi')
-  }, [difficultyId, hasStarted])
+      clearSavedGame()
+      currentGameSnapshotRef.current = null
+      if (wrongSelectionTimerRef.current !== null) {
+        window.clearTimeout(wrongSelectionTimerRef.current)
+        wrongSelectionTimerRef.current = null
+      }
+      setSavedGame(null)
+      setDifficultyId(nextDifficulty.id)
+      setCurrentLevel(1)
+      setBoard(createBoard(nextDifficulty))
+      setSelected(null)
+      setInactivePositions([])
+      setHint(null)
+      setScore(0)
+      setCombo(0)
+      setMistakes(0)
+      setHintsLeft(nextDifficulty.hints)
+      setShufflesLeft(nextDifficulty.shuffles)
+      setTimeLeft(nextDifficulty.timeLimit)
+      setHasStarted(autoStart)
+      setIsRunning(autoStart)
+      setResult('playing')
+      setShowNoPairsModal(false)
+      setCompletedLevel(null)
+      hasSavedGameOverRef.current = false
+      setStatus(autoStart ? `Màn 1: ${getLevelConfig(1).title}` : 'Nhấn Bắt đầu để chơi')
+    },
+    [difficultyId, hasStarted],
+  )
+
+  const clearWrongSelectionState = useCallback(() => {
+    if (wrongSelectionTimerRef.current !== null) {
+      window.clearTimeout(wrongSelectionTimerRef.current)
+      wrongSelectionTimerRef.current = null
+    }
+
+    setInactivePositions([])
+  }, [])
+
+  const markWrongSelection = useCallback(
+    (positions: Position[]) => {
+      if (wrongSelectionTimerRef.current !== null) {
+        window.clearTimeout(wrongSelectionTimerRef.current)
+      }
+
+      setInactivePositions(positions)
+      wrongSelectionTimerRef.current = window.setTimeout(() => {
+        setInactivePositions([])
+        wrongSelectionTimerRef.current = null
+      }, 450)
+    },
+    [],
+  )
 
   const buildCurrentSavedGame = useCallback((): SavedGameState | null => {
     if (!hasStarted || result !== 'playing') return null
@@ -939,12 +256,13 @@ export default function PikachuPage() {
       return
     }
 
+    playSoundEffect('action')
     writePlayerName(nextPlayerName)
     setPlayerName(nextPlayerName)
     setPlayerNameDraft(nextPlayerName)
     setShowPlayerNameDialog(false)
     setStatus(hasStarted ? 'Đã cập nhật tên người chơi' : savedGame ? 'Nhấn Tiếp tục để chơi' : 'Nhấn Bắt đầu để chơi')
-  }, [hasStarted, playerNameDraft, savedGame])
+  }, [hasStarted, playSoundEffect, playerNameDraft, savedGame])
 
   const handleToggleGameRunning = useCallback(() => {
     if (result !== 'playing') return
@@ -956,6 +274,8 @@ export default function PikachuPage() {
     }
 
     if (!hasStarted) {
+      void resumeAudioContext()
+      playSoundEffect('action')
       setHasStarted(true)
       setIsRunning(true)
       setStatus(`Màn ${currentLevel}: ${currentLevelConfig.title}`)
@@ -963,17 +283,22 @@ export default function PikachuPage() {
     }
 
     if (isRunning) {
+      playSoundEffect('action')
       setIsRunning(false)
       setStatus('Tạm Dừng')
       return
     }
 
+    void resumeAudioContext()
+    playSoundEffect('action')
     setIsRunning(true)
     setStatus('Tiếp tục chơi')
-  }, [currentLevel, currentLevelConfig.title, hasStarted, isRunning, playerName, result])
+  }, [currentLevel, currentLevelConfig.title, hasStarted, isRunning, playSoundEffect, playerName, result, resumeAudioContext])
 
   const handleBackHome = useCallback(() => {
     const nextSavedGame = buildCurrentSavedGame()
+
+    playSoundEffect('action')
 
     if (nextSavedGame) {
       writeSavedGame(nextSavedGame)
@@ -983,23 +308,119 @@ export default function PikachuPage() {
     setHasStarted(false)
     setIsRunning(false)
     setSelected(null)
+    clearWrongSelectionState()
     setHint(null)
     setShowNoPairsModal(false)
     setCompletedLevel(null)
     setStatus(nextSavedGame || savedGame ? 'Nhấn Tiếp tục để chơi' : 'Nhấn Bắt đầu để chơi')
-  }, [buildCurrentSavedGame, savedGame])
+  }, [buildCurrentSavedGame, clearWrongSelectionState, playSoundEffect, savedGame])
+
+  const handleLeavePage = useCallback(() => {
+    const nextSavedGame = buildCurrentSavedGame()
+
+    if (nextSavedGame) {
+      writeSavedGame(nextSavedGame)
+      setSavedGame(nextSavedGame)
+    }
+
+    pauseBackgroundMusic()
+
+    if (hasStarted && result === 'playing') {
+      setIsRunning(false)
+      setStatus('Tạm Dừng')
+    }
+  }, [buildCurrentSavedGame, hasStarted, pauseBackgroundMusic, result])
 
   const handleContinueNextLevel = useCallback(() => {
     if (completedLevel === null) return
 
+    playSoundEffect('action')
     setCompletedLevel(null)
+    clearWrongSelectionState()
     setIsRunning(true)
     setStatus(`Màn ${currentLevel}: ${currentLevelConfig.title}`)
-  }, [completedLevel, currentLevel, currentLevelConfig.title])
+  }, [clearWrongSelectionState, completedLevel, currentLevel, currentLevelConfig.title, playSoundEffect])
+
+  const handleDifficultyChange = useCallback(
+    (nextDifficultyId: DifficultyId) => {
+      if (nextDifficultyId === difficultyId) return
+
+      const nextSettings: GameSettings = {
+        ...gameSettings,
+        difficultyId: nextDifficultyId,
+      }
+
+      setGameSettings(nextSettings)
+      writeGameSettings(nextSettings)
+      playSoundEffect('action')
+      setShowDifficultyModal(false)
+      clearWrongSelectionState()
+      resetGame(nextDifficultyId, false)
+    },
+    [clearWrongSelectionState, difficultyId, gameSettings, playSoundEffect, resetGame],
+  )
+
+  const handleApplyAudioSettings = useCallback(
+    (updates: Partial<Pick<GameSettings, 'musicEnabled' | 'soundEnabled' | 'musicVolume' | 'soundVolume'>>) => {
+      const nextSettings: GameSettings = {
+        ...gameSettings,
+        ...updates,
+        musicVolume:
+          updates.musicVolume === undefined
+            ? gameSettings.musicVolume
+            : clampPercentage(updates.musicVolume, gameSettings.musicVolume),
+        soundVolume:
+          updates.soundVolume === undefined
+            ? gameSettings.soundVolume
+            : clampPercentage(updates.soundVolume, gameSettings.soundVolume),
+      }
+
+      const shouldResumeAudio =
+        (!gameSettings.musicEnabled && nextSettings.musicEnabled) ||
+        (!gameSettings.soundEnabled && nextSettings.soundEnabled)
+      const shouldPlayAction =
+        updates.musicEnabled !== undefined || updates.soundEnabled !== undefined
+
+      setGameSettings(nextSettings)
+      writeGameSettings(nextSettings)
+
+      if (shouldPlayAction) {
+        playSoundEffect('action')
+      }
+
+      if (shouldResumeAudio) {
+        void resumeAudioContext()
+      }
+    },
+    [gameSettings, playSoundEffect, resumeAudioContext],
+  )
+
+  const handleOpenSettings = useCallback(() => {
+    playSoundEffect('action')
+    setActiveSettingsTab('audio')
+    setShowSettingsModal(true)
+  }, [playSoundEffect])
+
+  const handleCloseSettings = useCallback(() => {
+    playSoundEffect('action')
+    setShowSettingsModal(false)
+  }, [playSoundEffect])
+
+  const handleSettingsTabChange = useCallback(
+    (nextTab: SettingsTab) => {
+      if (nextTab === activeSettingsTab) return
+
+      playSoundEffect('action')
+      setActiveSettingsTab(nextTab)
+    },
+    [activeSettingsTab, playSoundEffect],
+  )
 
   const finishSuccessfulMatch = useCallback(
     (match: MatchPair) => {
+      playSoundEffect('match')
       setSelected(null)
+      clearWrongSelectionState()
       setHint(null)
       setCombo((currentCombo) => {
         const nextCombo = currentCombo + 1
@@ -1047,7 +468,7 @@ export default function PikachuPage() {
         return arrangedBoard
       })
     },
-    [currentLevel, currentLevelConfig.arrangement, difficulty, shufflesLeft, timeLeft],
+    [clearWrongSelectionState, currentLevel, currentLevelConfig.arrangement, difficulty, playSoundEffect, shufflesLeft, timeLeft],
   )
 
   const handleTileClick = useCallback(
@@ -1060,6 +481,7 @@ export default function PikachuPage() {
       setHint(null)
 
       if (!selected) {
+        playSoundEffect('select')
         setSelected(position)
         return
       }
@@ -1072,25 +494,32 @@ export default function PikachuPage() {
       const selectedTile = getTile(board, selected)
 
       if (!selectedTile) {
+        playSoundEffect('select')
         setSelected(position)
         return
       }
 
       if (selectedTile.symbolId !== tile.symbolId) {
-        setSelected(position)
+        playSoundEffect('failNew')
+        setMistakes((current) => current + 1)
+        setSelected(null)
+        markWrongSelection([selected, position])
         return
       }
 
       const cachedMatch = playablePairLookup.get(getMatchKey(selected, position))
 
       if (!cachedMatch) {
-        setSelected(position)
+        playSoundEffect('failNew')
+        setMistakes((current) => current + 1)
+        setSelected(null)
+        markWrongSelection([selected, position])
         return
       }
 
       finishSuccessfulMatch(cachedMatch)
     },
-    [board, canInteract, finishSuccessfulMatch, playablePairLookup, selected],
+    [board, canInteract, finishSuccessfulMatch, markWrongSelection, playablePairLookup, playSoundEffect, selected],
   )
 
   const handleHint = useCallback(() => {
@@ -1103,13 +532,14 @@ export default function PikachuPage() {
       return
     }
 
+    playSoundEffect('action')
     setHintsLeft((current) => Math.max(0, current - 1))
     setSelected(match.first)
     setHint(match)
-  }, [canInteract, hintsLeft, playablePairs, shufflesLeft])
+  }, [canInteract, hintsLeft, playablePairs, playSoundEffect, shufflesLeft])
 
-  const handleShuffle = useCallback(() => {
-    if (!canInteract || shufflesLeft <= 0 || remainingTiles <= 0) return
+  const performShuffle = useCallback(() => {
+    if (shufflesLeft <= 0 || remainingTiles <= 0) return
 
     const shuffled = shuffleSymbolsUntilPlayable(board)
     const nextShufflesLeft = Math.max(0, shufflesLeft - 1)
@@ -1117,16 +547,31 @@ export default function PikachuPage() {
 
     setBoard(shuffled.board)
     setSelected(null)
+    clearWrongSelectionState()
     setHint(null)
     setShowNoPairsModal(false)
     setShufflesLeft((current) => Math.max(0, current - 1))
     setCombo(0)
+    playSoundEffect('shuffle')
+
     if (nextPlayablePairCount === 0) {
       setStatus(getNoPairsStatus(nextShufflesLeft > 0))
     } else {
       setStatus(`Màn ${currentLevel}: ${currentLevelConfig.title}`)
     }
-  }, [board, canInteract, currentLevel, currentLevelConfig.title, remainingTiles, shufflesLeft])
+  }, [board, clearWrongSelectionState, currentLevel, currentLevelConfig.title, playSoundEffect, remainingTiles, shufflesLeft])
+
+  const handleShuffle = useCallback(() => {
+    if (!canInteract || shufflesLeft <= 0 || remainingTiles <= 0) return
+
+    if (playablePairCount > 0) {
+      playSoundEffect('action')
+      setConfirmAction({ type: 'shuffle' })
+      return
+    }
+
+    performShuffle()
+  }, [canInteract, performShuffle, playablePairCount, playSoundEffect, remainingTiles, shufflesLeft])
 
   const handleReload = useCallback(() => {
     if (typeof window === 'undefined') return
@@ -1134,20 +579,28 @@ export default function PikachuPage() {
     window.location.reload()
   }, [])
 
-  const handleRequestRestart = useCallback((autoStart = hasStarted) => {
-    setConfirmAction({ type: 'restart', autoStart })
-  }, [hasStarted])
+  const handleRequestRestart = useCallback(
+    (autoStart = hasStarted) => {
+      playSoundEffect('action')
+      setConfirmAction({ type: 'restart', autoStart })
+    },
+    [hasStarted, playSoundEffect],
+  )
 
   const handleRequestReload = useCallback(() => {
+    playSoundEffect('action')
     setConfirmAction({ type: 'reload' })
-  }, [])
+  }, [playSoundEffect])
 
   const handleCloseConfirm = useCallback(() => {
+    playSoundEffect('action')
     setConfirmAction(null)
-  }, [])
+  }, [playSoundEffect])
 
   const handleConfirmAction = useCallback(() => {
     if (!confirmAction) return
+
+    playSoundEffect('action')
 
     if (confirmAction.type === 'restart') {
       const { autoStart } = confirmAction
@@ -1157,11 +610,19 @@ export default function PikachuPage() {
       return
     }
 
+    if (confirmAction.type === 'shuffle') {
+      setConfirmAction(null)
+      performShuffle()
+      return
+    }
+
     setConfirmAction(null)
     handleReload()
-  }, [confirmAction, difficultyId, handleReload, resetGame])
+  }, [confirmAction, difficultyId, handleReload, performShuffle, playSoundEffect, resetGame])
 
   const handleInstallApp = useCallback(async () => {
+    playSoundEffect('action')
+
     if (isInstalled) {
       setStatus('Game dang chay o che do app')
       return
@@ -1179,9 +640,13 @@ export default function PikachuPage() {
 
     if (choice?.outcome === 'accepted') {
       setStatus('Dang cai dat game')
-      return
     }
-  }, [installPrompt, isInstalled])
+  }, [installPrompt, isInstalled, playSoundEffect])
+
+  const handleToggleSidebar = useCallback(() => {
+    playSoundEffect('action')
+    setOpenSidebar((current) => !current)
+  }, [playSoundEffect])
 
   useEffect(() => {
     if (score <= highScore) return
@@ -1214,32 +679,26 @@ export default function PikachuPage() {
   useEffect(() => {
     if (typeof window === 'undefined' || typeof document === 'undefined') return undefined
 
-    const persistCurrentGame = () => {
-      const currentGameSnapshot = currentGameSnapshotRef.current
-      if (!currentGameSnapshot) return
-
-      writeSavedGame({
-        ...currentGameSnapshot,
-        savedAt: Date.now(),
-      })
+    const handleLeave = () => {
+      handleLeavePage()
     }
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'hidden') {
-        persistCurrentGame()
+        handleLeave()
       }
     }
 
-    window.addEventListener('pagehide', persistCurrentGame)
-    window.addEventListener('beforeunload', persistCurrentGame)
+    window.addEventListener('pagehide', handleLeave)
+    window.addEventListener('beforeunload', handleLeave)
     document.addEventListener('visibilitychange', handleVisibilityChange)
 
     return () => {
-      window.removeEventListener('pagehide', persistCurrentGame)
-      window.removeEventListener('beforeunload', persistCurrentGame)
+      window.removeEventListener('pagehide', handleLeave)
+      window.removeEventListener('beforeunload', handleLeave)
       document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
-  }, [])
+  }, [handleLeavePage])
 
   useEffect(() => {
     if (result === 'playing') return
@@ -1250,27 +709,37 @@ export default function PikachuPage() {
   }, [result])
 
   useEffect(() => {
+    return () => {
+      if (wrongSelectionTimerRef.current !== null) {
+        window.clearTimeout(wrongSelectionTimerRef.current)
+        wrongSelectionTimerRef.current = null
+      }
+    }
+  }, [])
+
+  useEffect(() => {
     if (result === 'playing' || !hasStarted || !playerName || hasSavedGameOverRef.current) return
 
     hasSavedGameOverRef.current = true
 
-    void pikachuService.saveGame({
-      player_name: playerName,
-      score,
-      level_reached: currentLevel,
-      highest_level: Math.max(highestLevel, currentLevel),
-      result,
-      time_left: timeLeft,
-      difficulty_id: difficultyId,
-      is_standalone: isStandaloneDisplayMode(),
-      stats: {
-        combo,
-        mistakes,
-        hints_left: hintsLeft,
-        shuffles_left: shufflesLeft,
-        remaining_tiles: remainingTiles,
-      },
-    })
+    void pikachuService
+      .saveGame({
+        player_name: playerName,
+        score,
+        level_reached: currentLevel,
+        highest_level: Math.max(highestLevel, currentLevel),
+        result,
+        time_left: timeLeft,
+        difficulty_id: difficultyId,
+        is_standalone: isStandaloneDisplayMode(),
+        stats: {
+          combo,
+          mistakes,
+          hints_left: hintsLeft,
+          shuffles_left: shufflesLeft,
+          remaining_tiles: remainingTiles,
+        },
+      })
       .then(() => loadLeaderboard())
       .catch(() => undefined)
   }, [
@@ -1280,6 +749,7 @@ export default function PikachuPage() {
     hasStarted,
     highestLevel,
     hintsLeft,
+    loadLeaderboard,
     mistakes,
     playerName,
     remainingTiles,
@@ -1287,18 +757,17 @@ export default function PikachuPage() {
     score,
     shufflesLeft,
     timeLeft,
-    loadLeaderboard,
   ])
 
   useEffect(() => {
-    if (!isRunning || result !== 'playing') return undefined
+    if (!isRunning || isActionModalOpen || result !== 'playing') return undefined
 
     const timer = window.setInterval(() => {
       setTimeLeft((current) => Math.max(0, current - 1))
     }, 1000)
 
     return () => window.clearInterval(timer)
-  }, [isRunning, result])
+  }, [isActionModalOpen, isRunning, result])
 
   useEffect(() => {
     if (timeLeft > 0 || result !== 'playing') return
@@ -1317,20 +786,6 @@ export default function PikachuPage() {
     setStatus(getNoPairsStatus(shufflesLeft > 0))
     setShowNoPairsModal(shufflesLeft > 0)
   }, [hasStarted, needsShuffle, result, shufflesLeft])
-
-  useEffect(() => {
-    if (typeof document === 'undefined') return undefined
-
-    const syncFullscreen = () => {
-      if (!document.fullscreenElement) {
-        setIsFullscreen(false)
-      }
-    }
-
-    document.addEventListener('fullscreenchange', syncFullscreen)
-
-    return () => document.removeEventListener('fullscreenchange', syncFullscreen)
-  }, [])
 
   useEffect(() => {
     if (typeof window === 'undefined') return undefined
@@ -1363,752 +818,370 @@ export default function PikachuPage() {
     }
   }, [])
 
-  const [openSidebar, setOpenSidebar] = useState<boolean>(true);
-  const handleHiddenSideBar = () => {
-    setOpenSidebar((p) => !p)
-  }
-
   return (
-    <section
-      className={`pikachu-game-root min-h-dvh bg-[#170703] text-[#ffd51f] tracking-normal ${
-        isFullscreen ? 'fixed inset-0 z-50 overflow-hidden' : 'overflow-auto'
-      }`}
-    >
-      <style>
-        {`
-          .pikachu-rotate-lock {
-            display: none;
-          }
-
-          .pikachu-glow-modal {
-            position: relative;
-            isolation: isolate;
-            overflow: hidden;
-            border-color: rgba(255, 221, 47, 0.52);
-            background-color: rgba(22, 7, 3, 0.3);
-            backdrop-filter: blur(6px);
-            -webkit-backdrop-filter: blur(6px);
-            box-shadow:
-              0 0 18px rgba(255, 221, 47, 0.18),
-              0 18px 45px rgba(0, 0, 0, 0.42);
-          }
-
-          .pikachu-board-stage {
-            background-image:
-              linear-gradient(135deg, rgba(10, 3, 1, 0.26), rgba(10, 3, 1, 0.58)),
-              url("/images/pikachu/fantastic-pokemon-home.webp");
-            background-position: center;
-            background-size: cover;
-          }
-
-          .pikachu-modal-backdrop {
-            background: rgba(10, 3, 1, 0.1);
-            backdrop-filter: blur(1px);
-            -webkit-backdrop-filter: blur(1px);
-          }
-
-          .pikachu-home-modal {
-            min-height: min(520px, calc(100dvh - 2rem));
-          }
-
-          .pikachu-glow-modal::before {
-            content: "";
-            position: absolute;
-            inset: 0;
-            z-index: 0;
-            border-radius: inherit;
-            padding: 2px;
-            pointer-events: none;
-            background: conic-gradient(
-              from var(--pikachu-modal-border-angle, 0deg),
-              rgba(255, 221, 47, 0.12),
-              rgba(255, 234, 0, 0.95),
-              rgba(249, 115, 22, 0.95),
-              rgba(156, 255, 0, 0.9),
-              rgba(255, 221, 47, 0.12)
-            );
-            -webkit-mask:
-              linear-gradient(#000 0 0) content-box,
-              linear-gradient(#000 0 0);
-            -webkit-mask-composite: xor;
-            mask-composite: exclude;
-            animation: pikachu-modal-border-spin 2.4s linear infinite;
-          }
-
-          .pikachu-glow-modal > * {
-            position: relative;
-            z-index: 1;
-          }
-
-          @property --pikachu-modal-border-angle {
-            syntax: "<angle>";
-            initial-value: 0deg;
-            inherits: false;
-          }
-
-          @keyframes pikachu-modal-border-spin {
-            to {
-              --pikachu-modal-border-angle: 360deg;
-            }
-          }
-
-          @media (prefers-reduced-motion: reduce) {
-            .pikachu-glow-modal::before {
-              animation: none;
-            }
-          }
-
-          @media (min-width: 921px) {
-            .pikachu-desktop-frame {
-              min-height: 100dvh;
-            }
-
-            .pikachu-game-sidebar {
-              width: clamp(220px, 23vw, 320px);
-              padding: 0.75rem;
-            }
-
-            .pikachu-board-title {
-              padding: 0.75rem;
-              font-size: 1.5rem;
-              line-height: 1.15;
-            }
-
-            .pikachu-board-grid {
-              left: 3% !important;
-              width: min(94%, calc((100dvh - 5rem) * 16 / 9)) !important;
-            }
-
-            .pikachu-action-button {
-              min-height: 2.5rem;
-              padding: 0.625rem 0.75rem;
-              font-size: 0.8125rem;
-            }
-
-            .pikachu-action-button svg {
-              height: 1.125rem;
-              width: 1.125rem;
-            }
-
-            .pikachu-glow-modal {
-              font-size: 1rem;
-            }
-          }
-
-          @media (min-width: 1280px) {
-
-            .pikachu-game-sidebar {
-              width: clamp(300px, 22vw, 380px);
-              padding: 1rem;
-            }
-
-            .pikachu-board-title {
-              padding: 1rem;
-              font-size: 1.75rem;
-            }
-
-            .pikachu-board-grid {
-              left: 2.5% !important;
-              width: min(95%, calc((100dvh - 5.75rem) * 16 / 9)) !important;
-            }
-
-            .pikachu-action-button {
-              min-height: 2.75rem;
-              padding: 0.75rem 0.875rem;
-              font-size: 0.875rem;
-            }
-          }
-
-          @media (max-width: 920px) {
-            .pikachu-game-tile-face {
-              height: 88%;
-              width: 88%;
-              object-fit: contain;
-            }
-          }
-
-          @media (max-width: 920px) and (orientation: portrait) {
-            .pikachu-game-root {
-              overflow: hidden;
-            }
-
-            .pikachu-game-root .pikachu-game-frame {
-              filter: blur(2px);
-              opacity: 0.18;
-              pointer-events: none;
-            }
-
-            .pikachu-rotate-lock {
-              position: fixed;
-              inset: 0;
-              z-index: 80;
-              display: flex;
-              flex-direction: column;
-              align-items: center;
-              justify-content: center;
-              gap: 0.75rem;
-              padding: 1.5rem;
-              background: radial-gradient(circle at 50% 0%, rgba(107, 45, 14, 0.96), rgba(23, 7, 3, 0.98) 58%);
-              color: #ffdd2f;
-              text-align: center;
-            }
-
-            .pikachu-rotate-lock-icon {
-              display: inline-flex;
-              height: 3.5rem;
-              width: 3.5rem;
-              align-items: center;
-              justify-content: center;
-              border-radius: 0.75rem;
-              border: 1px solid rgba(255, 196, 0, 0.42);
-              background: rgba(66, 22, 7, 0.82);
-              box-shadow: 0 0 24px rgba(255, 213, 31, 0.18);
-            }
-          }
-
-          @media (max-width: 920px) and (orientation: landscape) {
-            .pikachu-game-root {
-              overflow: hidden;
-            }
-
-            .pikachu-game-root > div {
-              padding: 0;
-            }
-
-            .pikachu-game-frame {
-              min-height: 100dvh;
-              border-radius: 0;
-              border-width: 0;
-            }
-
-            .pikachu-game-time-column,
-            .pikachu-game-time-mobile {
-              display: none;
-            }
-
-            .pikachu-game-panel-clock {
-              display: flex;
-            }
-          }
-        `}
-      </style>
+    <section className="pikachu-game-root min-h-dvh overflow-auto bg-[#170703] text-[#ffd51f] tracking-normal">
       <div className="pikachu-rotate-lock" role="status" aria-live="polite">
         <div>
           <div className="text-xl font-black">Xoay ngang điện thoại</div>
           <div className="mt-2 text-sm font-semibold text-[#ffd24a]/80">
-            Vui lòng xoay ngang để có thể chơi game thoải máy hơn
+            Vui lòng xoay ngang để có thể chơi game thoải mái hơn
           </div>
-          <div className="mt-2 text-sm font-semibold text-[#ffd24a]/80">
-            hoặc tải xuống nhé!!
-          </div>
+          <div className="mt-2 text-sm font-semibold text-[#ffd24a]/80">hoặc tải xuống nhé!!</div>
         </div>
         <ArcadeButton
           icon={Download}
-          label={isInstalled ? "Đã cài đặt" : "Cài đặt App"}
+          label={isInstalled ? 'Đã cài đặt' : 'Cài đặt App'}
           onClick={() => {
             void handleInstallApp()
           }}
           disabled={isInstalled}
         />
       </div>
+
       {showPlayerIdentityDialog ? (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-[#160703]/78 p-4 backdrop-blur-sm">
-          <div className="pikachu-glow-modal w-full max-w-md rounded-lg border border-[#ffdd2f]/40 bg-[#351609] p-5 shadow-xl">
-            <div className="text-center">
-              <div className="text-xl font-bold text-[#ffdd2f]">Thông tin người chơi</div>
-            </div>
-            <div className="mt-4">
-              <label className="text-xs font-black uppercase text-[#ffc84a]/70" htmlFor="pikachu-player-name">
-                Nick Name
-              </label>
-              <input
-                id="pikachu-player-name"
-                type="text"
-                value={playerNameDraft}
-                maxLength={40}
-                autoFocus
-                className="mt-2 h-11 w-full rounded-md border border-[#995018]/80 bg-[#2a0e05]/80 px-3 text-sm font-semibold text-[#fff1a6] outline-none transition focus:border-[#ffdd2f]"
-                placeholder="Ví dụ: Harry Porter"
-                onChange={(event) => setPlayerNameDraft(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter') {
-                    handleSavePlayerName()
-                  }
-                }}
-              />
-            </div>
-            <button
-              type="button"
-              className="mt-4 inline-flex h-10 w-full items-center justify-center gap-2 rounded-md bg-[#f97316] px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[#ea580c]"
-              onClick={handleSavePlayerName}
-            >
-              <Play className="h-4 w-4" aria-hidden="true" />
-              Lưu tên người chơi
-            </button>
-          </div>
-        </div>
+        <PlayerNameModal
+          playerNameDraft={playerNameDraft}
+          onChange={setPlayerNameDraft}
+          onSave={handleSavePlayerName}
+        />
       ) : null}
+
       <div className="mx-auto flex min-h-dvh flex-col bg-[radial-gradient(circle_at_50%_0%,rgba(138,65,20,0.82),rgba(64,24,10,0.95)_48%,#180703_100%)]">
-        <div className="pikachu-desktop-frame h-screen relative flex flex-col overflow-hidden border border-[#713613] bg-[#351609] shadow-2xl">
+        <div className="relative flex h-screen flex-col overflow-hidden border border-[#713613] bg-[#351609] shadow-2xl">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(138,65,20,0.82),rgba(64,24,10,0.95)_48%,#180703_100%)]" />
           <div className="absolute inset-0 opacity-25 [background-image:linear-gradient(90deg,rgba(255,221,92,0.08)_1px,transparent_1px),linear-gradient(rgba(255,221,92,0.05)_1px,transparent_1px)] [background-size:24px_24px]" />
 
-          <main className="relative flex flex-1 flex-row items-stretch">
-            {!openSidebar ?
-              <div className="absolute z-50 top-10 left-10 rounded-lg p-2 bg-white">
-                <Menu className="w-4 h-4 cursor-pointer text-black" onClick={handleHiddenSideBar} />
-              </div>: null
-            }
-            <aside className={`pikachu-game-sidebar flex flex-col rounded-r-md border p-2 border-[#995018]/70 bg-[#240c05]/80 lg:w-[340px] transition-all ${openSidebar ? '' : 'hidden'}`}>
-              <div className="relative mb-4 text-center font-bold text-xl">
-                Pi Ka Pi Ka
-                <Menu className="absolute top-0 right-0 w-4 h-4 cursor-pointer" onClick={handleHiddenSideBar} />
-              </div>
-              <div className="flex flex-wrap justify-start gap-2 text-sm font-bold">
-                <ArcadeButton
-                  icon={Download}
-                  onClick={() => {
-                    void handleInstallApp()
-                  }}
-                  disabled={isInstalled}
-                />
-                <ArcadeButton
-                  icon={House}
-                  onClick={handleBackHome}
-                  disabled={!hasStarted || result !== 'playing' || isLevelCompleteWaiting}
-                />
-                <ArcadeButton
-                  icon={Lightbulb}
-                  onClick={handleHint}
-                  disabled={!canInteract || hintsLeft <= 0}
-                  badge={hintsLeft}
-                />
-                <ArcadeButton
-                  icon={Shuffle}
-                  onClick={handleShuffle}
-                  disabled={!canInteract || shufflesLeft <= 0}
-                  badge={shufflesLeft}
-                />
-              </div>
-              <ArcadeButton
-                icon={hasStarted && isRunning ? Pause : Play}
-                onClick={handleToggleGameRunning}
-                disabled={result !== 'playing' || isLevelCompleteWaiting}
-                label={playButtonLabel}
-              />
-              <ArcadeButton icon={RotateCcw} onClick={() => handleRequestRestart()} label="Chơi lại" />
+          <main className="relative flex flex-1 flex-row items-stretch overflow-hidden">
+            <button
+              type="button"
+              aria-label={openSidebar ? 'Ẩn menu' : 'Hiện menu'}
+              className={`absolute top-4 z-20 inline-flex h-10 w-8 items-center justify-center rounded-md border border-l-0 border-[#995018]/80 bg-[#421607]/90 text-[#ffc400] shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] transition-[left,background-color] duration-300 hover:bg-[#562008] ${
+                openSidebar ? 'left-[160px] lg:left-[340px] xl:left-[380px]' : 'left-10'
+              } ${isInstalled ? ' ml-12' : ''}`}
+              onClick={handleToggleSidebar}
+            >
+              {openSidebar ? (
+                <ChevronLeft className="h-4 w-4 lg:h-[1.125rem] lg:w-[1.125rem]" aria-hidden="true" />
+              ) : (
+                <ChevronRight className="h-4 w-4 lg:h-[1.125rem] lg:w-[1.125rem]" aria-hidden="true" />
+              )}
+            </button>
 
-              <div className="mt-3 rounded-md border border-[#995018]/70 bg-[#2a0e05]/70 p-1">
-                <div className="text-[10px] font-black uppercase text-[#ffc84a]/70">Trạng Thái</div>
-                <div className="inline-flex items-center justify-center gap-1 rounded-md py-1 text-xs font-black text-[#ffdd2f]">
-                  Time: {formatTime(timeLeft)}
-                  <Clock3 className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+            <aside
+              className={`relative z-10 shrink-0 overflow-hidden rounded-r-md border-r border-[#995018]/70 bg-[#240c05]/80 transition-[width,min-width,padding,opacity,border-color] duration-300 ease-out ${
+                openSidebar
+                  ? 'w-[160px] p-2 opacity-100 lg:w-[340px] lg:min-w-[340px] lg:p-3 xl:w-[380px] xl:min-w-[380px] xl:p-4'
+                  : 'w-0 min-w-0 border-transparent p-0 opacity-0'
+              } ${isInstalled ? ' ml-12' : ''}`}
+            >
+              <div className={`flex h-full flex-col transition-opacity duration-200 ${openSidebar ? 'opacity-100' : 'pointer-events-none opacity-0'}`}>
+                <div className="mb-4 flex items-center justify-between gap-2 text-xl font-bold lg:text-2xl xl:text-[1.75rem]">
+                  <span className="flex-1 text-center">Pi Ka Pi Ka</span>
                 </div>
-                <div className="text-xs font-bold text-[#fff1a6]">{status}</div>
-                {isRunning && (
-                  <div className="flex items-center justify-between text-[10px] font-black text-[#ffc84a]/75">
-                    <span>Cặp có thể ăn</span>
-                    <span className="text-[#ffdd2f]">{playablePairCount}</span>
+                <div className="flex flex-wrap justify-start gap-1 text-sm font-bold">
+                  <ArcadeButton icon={Settings} onClick={handleOpenSettings} />
+                  <ArcadeButton
+                    icon={House}
+                    onClick={handleBackHome}
+                    disabled={!hasStarted || result !== 'playing' || isLevelCompleteWaiting}
+                  />
+                  <ArcadeButton
+                    icon={Lightbulb}
+                    onClick={handleHint}
+                    disabled={!canInteract || hintsLeft <= 0}
+                    badge={hintsLeft}
+                  />
+                  <ArcadeButton
+                    icon={Shuffle}
+                    onClick={handleShuffle}
+                    disabled={!canInteract || shufflesLeft <= 0}
+                    badge={shufflesLeft}
+                  />
+                </div>
+                <ArcadeButton
+                  icon={hasStarted && isRunning ? Pause : Play}
+                  onClick={handleToggleGameRunning}
+                  disabled={result !== 'playing' || isLevelCompleteWaiting}
+                  label={playButtonLabel}
+                />
+                <ArcadeButton icon={RotateCcw} onClick={() => handleRequestRestart()} label="Chơi lại" />
+
+                <div className="mt-3 rounded-md border border-[#995018]/70 bg-[#2a0e05]/70 p-1">
+                  <div className="text-[10px] font-black uppercase text-[#ffc84a]/70">Trạng Thái</div>
+                  <div className="inline-flex items-center justify-center gap-1 rounded-md py-1 text-xs font-black text-[#ffdd2f]">
+                    Time: {formatTime(timeLeft)}
+                    <Clock3 className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                   </div>
-                )}
-              </div>
-              <div className="mt-3 rounded-md border border-[#995018]/70 bg-[#2a0e05]/70 p-1 mb-4">
-                <div className="text-[10px] font-black uppercase text-[#ffc84a]/70">Thông tin</div>
-                <div className="grid grid-cols-1 text-[11px]">
-                  <SideStat label="Tên" value={playerName || 'No Name'} />
-                  <SideStat label="Còn lại" value={String(remainingTiles)} />
-                  <SideStat label="Luot Doi" value={String(shufflesLeft)} />
+                  <div className="text-xs font-bold text-[#fff1a6]">{status}</div>
+                  {isRunning ? (
+                    <div className="flex items-center justify-between text-[10px] font-black text-[#ffc84a]/75">
+                      <span>Cặp có thể ăn</span>
+                      <span className="text-[#ffdd2f]">{playablePairCount}</span>
+                    </div>
+                  ) : null}
                 </div>
+
+                <div className="mb-4 mt-3 rounded-md border border-[#995018]/70 bg-[#2a0e05]/70 p-1">
+                  <div className="text-[10px] font-black uppercase text-[#ffc84a]/70">Thông tin</div>
+                  <div className="grid grid-cols-1 text-[11px]">
+                    <SideStat label="Tên" value={playerName || 'No Name'} />
+                    <SideStat label="Còn lại" value={String(remainingTiles)} />
+                    <SideStat label="Luot Doi" value={String(shufflesLeft)} />
+                  </div>
+                </div>
+
+                <ArcadeButton icon={RefreshCw} onClick={handleRequestReload} label="Reload Game" />
               </div>
-              <ArcadeButton icon={RefreshCw} onClick={handleRequestReload} label="Reload Game" />
             </aside>
 
-            <section className={`pikachu-board-stage relative min-w-0 ${openSidebar ? 'basis-11/12' : 'basis-12/12'} bg-[#2b0d05]/60 transition-all duration-200`}>
-              {!shouldHideBoard && <div className="text-white p-2 text-center font-bold text-2xl">Màn {String(currentLevel)}</div>}
-              <div className={`mx-auto transition-all duration-200 ${!openSidebar ? 'flex justify-center' : ''}`} >
-                <div
-                  className={`pikachu-board-grid relative grid rounded-sm p-[2px] transition-opacity duration-200 ${
-                    shouldHideBoard ? 'pointer-events-none opacity-0' : 'opacity-100'
-                  }`}
-                  style={{
-                    left: `${100 / (difficulty.cols + 1)}%`,
-                    width: `${(difficulty.cols / (difficulty.cols + 3)) * 100}%`,
-                    gridTemplateColumns: `repeat(${difficulty.cols}, minmax(0, 1fr))`,
-                    gridTemplateRows: `repeat(${difficulty.rows}, minmax(0, 1fr))`,
-                  }}
-                >
-                  {board.map((row, rowIndex) =>
-                    row.map((tile, colIndex) => {
-                      const position = { row: rowIndex, col: colIndex }
-
-                      if (!tile) {
-                        return (
-                          <div
-                            key={`empty-${rowIndex}-${colIndex}`}
-                            className="aspect-square rounded-[2px] border border-transparent"
-                            aria-hidden="true"
-                          />
-                        )
-                      }
-
-                      const symbol = symbolById[tile.symbolId] || TILE_SYMBOLS[0]
-                      const isSelected = selected ? samePosition(selected, position) : false
-                      const isHinted =
-                        hint && (samePosition(hint.first, position) || samePosition(hint.second, position))
-
-                      return (
-                        <button
-                          key={tile.id}
-                          type="button"
-                          className={`overflow-hidden relative flex aspect-square h-full w-full select-none touch-manipulation items-center justify-center overflow-hidden rounded-[2px] border p-0 text-current transition duration-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ffea00] focus-visible:ring-offset-1 focus-visible:ring-offset-[#401409] ${
-                            canInteract ? 'hover:brightness-110 active:scale-95' : 'cursor-default'
-                          } ${
-                            isSelected ? 'z-10 border-3 border-[#ff0000] ring-3 ring-[#ffea00] ring-inset opacity-90' : ''
-                          } ${isHinted ? 'animate-pulse' : ''}`}
-                          disabled={!canInteract}
-                          aria-label={`${symbol.label} ${rowIndex + 1}-${colIndex + 1}`}
-                          onPointerUp={(event) => {
-                            if (event.button !== 0) return
-                            event.preventDefault()
-                            handleTileClick(position)
-                          }}
-                          onKeyDown={(event) => {
-                            if (event.key === 'Enter' || event.key === ' ') {
-                              event.preventDefault()
-                              handleTileClick(position)
-                            }
-                          }}
-                        >
-                          <TileFace symbol={symbol} />
-                        </button>
-                      )
-                    }),
-                  )}
-
-                  <aside
-                    className={`h-full absolute -right-8 transition-opacity duration-200 ${
-                      shouldHideBoard ? 'pointer-events-none opacity-0' : 'opacity-100'
-                    }`}
-                  >
-                    <div className="flex items-center h-full gap-2">
-                      <div className="relative h-full w-4 flex-1 overflow-hidden rounded-full border border-[#8b2a0b] bg-[#2a0c04] shadow-[inset_0_2px_8px_rgba(0,0,0,0.65)]">
-                        <div
-                          className="absolute inset-x-0 bottom-0 rounded-full bg-gradient-to-t from-[#dc1f00] via-[#f97316] to-[#9CFF00] transition-[height] duration-500"
-                          style={{ height: `${timeProgress}%` }}
-                        />
-                      </div>
-                    </div>
-                  </aside>
-                </div>
-                {showStartOverlay ? (
-                  <div className="pikachu-modal-backdrop absolute inset-0 z-30 flex items-center justify-center rounded-lg p-4">
-                    <div className="pikachu-glow-modal pikachu-home-modal max-h-[calc(100dvh-2rem)] w-full max-w-5xl overflow-y-auto rounded-lg border border-[#ffdd2f]/40 bg-[#351609] p-5 text-center shadow-xl">
-                      <h2 className="text-center text-3xl font-black uppercase text-[#ffdd2f] drop-shadow-[0_3px_0_rgba(87,29,8,0.85)]">
-                        PI KA PI KA
-                      </h2>
-                      <div className="flex justify-between gap-4 items-start ">
-                        <div className="flex items-center justify-center">
-                          <div className="w-full max-w-md rounded-md border border-[#ffdd2f]/35 bg-[#160703]/72 p-4 text-left shadow-[0_12px_28px_rgba(0,0,0,0.35)] backdrop-blur-[2px]">
-                            <div className="flex items-center gap-3">
-                              <div className="min-w-0">
-                                <div className="text-sm">Pi ka Pi ka, Xin Chào</div>
-                                <div className="truncate text-xl font-black text-[#fff1a6]">{playerName || 'No Name'}</div>
-                              </div>
-                            </div>
-                            <div className="mt-4 grid gap-2 text-sm font-bold text-[#fff1a6]">
-                              <div className="flex items-center justify-between gap-3 rounded-md border border-[#995018]/70 bg-[#2a0e05]/76 px-3 py-2">
-                                <span>Điểm cao nhất</span>
-                                <span className="text-[#ffdd2f]">{highScore.toLocaleString('vi-VN')}</span>
-                              </div>
-                              <div className="flex items-center justify-between gap-3 rounded-md border border-[#995018]/70 bg-[#2a0e05]/76 px-3 py-2">
-                                <span>Màn chơi cao nhất</span>
-                                <span className="text-[#ffdd2f]">Màn {highestLevel}</span>
-                              </div>
-                            </div>
-                            <button
-                              type="button"
-                              className="mt-4 inline-flex h-10 w-full items-center justify-center gap-2 rounded-md bg-[#f97316] px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[#ea580c]"
-                              onClick={handleToggleGameRunning}
-                            >
-                              <Play className="h-4 w-4" aria-hidden="true" />
-                              {playButtonLabel}
-                            </button>
-                          </div>
-                        </div>
-                        <div className="rounded-md border border-[#ffdd2f]/35 bg-[#160703]/74 p-3 text-left shadow-[0_12px_28px_rgba(0,0,0,0.35)] backdrop-blur-[2px]">
-                          <div className="flex items-center justify-between gap-3">
-                            <div className="inline-flex items-center gap-2 text-sm font-black text-[#ffdd2f]">
-                              <Trophy className="h-4 w-4" aria-hidden="true" />
-                              Bảng xếp hạng
-                            </div>
-                            <div className="text-xs font-black text-[#ffc84a]/75">Top 10</div>
-                          </div>
-                          <div className="h-[60vh] overflow-auto">
-                            <div className="mt-3 grid gap-1.5">
-                              {isLeaderboardLoading ? (
-                                <div className="rounded-md border border-[#995018]/60 bg-[#2a0e05]/70 px-3 py-2 text-center text-xs font-bold text-[#ffd24a]/80">
-                                  Đang tải bảng xếp hạng
-                                </div>
-                              ) : leaderboardError ? (
-                                <div className="rounded-md border border-[#995018]/60 bg-[#2a0e05]/70 px-3 py-2 text-center text-xs font-bold text-[#ffd24a]/80">
-                                  {leaderboardError}
-                                </div>
-                              ) : leaderboard.length > 0 ? (
-                                leaderboard.map((entry) => {
-                                  const isCurrentPlayer = entry.playerName === playerName
-
-                                  return (
-                                    <div
-                                      key={`${entry.rank}-${entry.playerName}`}
-                                      className={`grid grid-cols-[2rem_minmax(0,1fr)_auto] items-center gap-2 rounded-md border px-2 py-1.5 text-xs font-bold ${
-                                        isCurrentPlayer
-                                          ? 'border-[#ffdd2f]/65 bg-[#5a3309]/85 text-[#fff1a6]'
-                                          : 'border-[#995018]/55 bg-[#2a0e05]/68 text-[#ffd24a]/86'
-                                      }`}
-                                    >
-                                      <div className="text-center text-[#ffdd2f]">#{entry.rank}</div>
-                                      <div className="min-w-0">
-                                        <div className="truncate text-[#fff1a6]">{entry.playerName}</div>
-                                        <div className="text-[10px] text-[#ffc84a]/72">
-                                          Màn {entry.highestLevel} · {entry.gamesPlayed} lượt
-                                        </div>
-                                      </div>
-                                      <div className="text-right text-[#ffdd2f]">
-                                        {entry.score.toLocaleString('vi-VN')}
-                                      </div>
-                                    </div>
-                                  )
-                                })
-                              ) : (
-                                <div className="rounded-md border border-[#995018]/60 bg-[#2a0e05]/70 px-3 py-2 text-center text-xs font-bold text-[#ffd24a]/80">
-                                  Chưa có dữ liệu xếp hạng
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
+            <section className="pikachu-board-stage relative min-w-0 flex-1 bg-[#2b0d05]/60 transition-all duration-200">
+              {!showStartOverlay ? (
+                <div className="absolute flex gap-2 items-center right-14 top-3 z-10 rounded-md border border-[#ffdd2f]/35 bg-[#2a0e05]/80 px-2 text-right shadow-[0_10px_24px_rgba(0,0,0,0.28)] backdrop-blur-[2px]">
+                  <div className="text-[10px] font-black uppercase text-[#ffc84a]/75">Điểm</div>
+                  <div className="text-base font-black leading-none text-[#ffdd2f] lg:text-lg xl:text-xl">
+                    {score.toLocaleString('vi-VN')}
                   </div>
-                ) : isLevelCompleteWaiting ? (
-                  <div className="pikachu-modal-backdrop absolute inset-0 z-30 flex items-center justify-center rounded-lg p-4">
-                    <div className="pikachu-glow-modal w-full max-w-sm rounded-lg border border-[#ffdd2f]/40 bg-[#351609] p-5 text-center shadow-xl">
-                      <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-md bg-[#174b37] text-[#ffdd2f]">
-                        <Trophy className="h-6 w-6" aria-hidden="true" />
-                      </div>
-                      <h2 className="text-xl font-bold text-[#ffdd2f]">Hoàn thành màn {completedLevel}</h2>
-                      <p className="mt-2 text-sm font-medium text-[#ffd24a]/85">
-                        Sẵn sàng chơi màn {currentLevel}: {currentLevelConfig.title}
-                      </p>
+                </div>
+              ) : null}
+
+              {!shouldHideBoard ? (
+                <div className="p-2 text-center text-2xl font-bold text-white lg:p-3 lg:text-[1.5rem] xl:p-4 xl:text-[1.75rem]">
+                  Màn {String(currentLevel)}
+                </div>
+              ) : null}
+
+              <PikachuBoard
+                board={board}
+                difficulty={difficulty}
+                selected={selected}
+                inactivePositions={inactivePositions}
+                hint={hint}
+                canInteract={canInteract}
+                shouldHideBoard={shouldHideBoard}
+                timeProgress={timeProgress}
+                onTileClick={handleTileClick}
+              />
+
+              {showStartOverlay ? (
+                <StartOverlay
+                  playerName={playerName}
+                  highScore={highScore}
+                  highestLevel={highestLevel}
+                  difficulty={difficulty}
+                  playButtonLabel={playButtonLabel}
+                  leaderboard={leaderboard}
+                  isLeaderboardLoading={isLeaderboardLoading}
+                  leaderboardError={leaderboardError}
+                  isDifficultyModalOpen={showDifficultyModal}
+                  onDifficultyOpen={() => setShowDifficultyModal(true)}
+                  onStart={handleToggleGameRunning}
+                />
+              ) : isLevelCompleteWaiting ? (
+                <ActionModal
+                  icon={<Trophy className="h-6 w-6" aria-hidden="true" />}
+                  title={`Hoàn thành màn ${completedLevel}`}
+                  description={`Sẵn sàng chơi màn ${currentLevel}: ${currentLevelConfig.title}`}
+                  actions={
+                    <button
+                      type="button"
+                      className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md bg-[#f97316] px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[#ea580c]"
+                      onClick={handleContinueNextLevel}
+                    >
+                      <Play className="h-4 w-4" aria-hidden="true" />
+                      Tiếp tục
+                    </button>
+                  }
+                />
+              ) : showPauseOverlay ? (
+                <ActionModal
+                  icon={<Pause className="h-6 w-6" aria-hidden="true" />}
+                  title="Tạm dừng"
+                  actions={
+                    <div className="grid gap-2">
                       <button
                         type="button"
-                        className="mt-4 inline-flex h-10 w-full items-center justify-center gap-2 rounded-md bg-[#f97316] px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[#ea580c]"
-                        onClick={handleContinueNextLevel}
+                        className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md bg-[#f97316] px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[#ea580c]"
+                        onClick={handleToggleGameRunning}
                       >
                         <Play className="h-4 w-4" aria-hidden="true" />
                         Tiếp tục
                       </button>
-                    </div>
-                  </div>
-                ) : showPauseOverlay ? (
-                  <div className="pikachu-modal-backdrop absolute inset-0 z-30 flex items-center justify-center rounded-lg p-4">
-                    <div className="pikachu-glow-modal w-full max-w-sm rounded-lg border border-[#ffdd2f]/40 bg-[#351609] p-5 text-center shadow-xl">
-                      <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-md bg-[#4a1b0c] text-[#ffdd2f]">
-                        <Pause className="h-6 w-6" aria-hidden="true" />
-                      </div>
-                      <h2 className="text-xl font-bold text-[#ffdd2f]">Tạm dừng</h2>
-                      <div className="mt-4 grid gap-2">
-                        <button
-                          type="button"
-                          className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md bg-[#f97316] px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[#ea580c]"
-                          onClick={handleToggleGameRunning}
-                        >
-                          <Play className="h-4 w-4" aria-hidden="true" />
-                          Tiếp tục
-                        </button>
-                        <button
-                          type="button"
-                          className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-[#ffdd2f]/35 bg-[#2a0e05]/88 px-4 text-sm font-semibold text-[#fff1a6] shadow-sm transition hover:bg-[#3a1609]"
-                          onClick={() => handleRequestRestart()}
-                        >
-                          <RotateCcw className="h-4 w-4" aria-hidden="true" />
-                          Chơi lại
-                        </button>
-                        <button
-                          type="button"
-                          className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-[#ffdd2f]/35 bg-[#2a0e05]/88 px-4 text-sm font-semibold text-[#fff1a6] shadow-sm transition hover:bg-[#3a1609]"
-                          onClick={handleBackHome}
-                        >
-                          <House className="h-4 w-4" aria-hidden="true" />
-                          Trang Chủ
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ) : result !== 'playing' ? (
-                  <div className="pikachu-modal-backdrop absolute inset-0 z-30 flex items-center justify-center rounded-lg p-4">
-                    <div className="pikachu-glow-modal w-full max-w-sm rounded-lg border border-[#ffdd2f]/40 bg-[#351609] p-5 text-center shadow-xl">
-                      <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-md bg-[#174b37] text-[#ffdd2f]">
-                        {result === 'won' ? (
-                          <Trophy className="h-6 w-6" aria-hidden="true" />
-                        ) : (
-                          <RefreshCw className="h-6 w-6" aria-hidden="true" />
-                        )}
-                      </div>
-                      <h2 className="text-xl font-bold text-[#ffdd2f]">
-                        {result === 'won' ? 'Hoàn thành' : 'Game Over'}
-                      </h2>
-                      <p className="mt-1 text-sm font-medium text-[#ffd24a]/85">
-                        Điểm: {score.toLocaleString('vi-VN')} | Kỷ lục: {highScore.toLocaleString('vi-VN')}
-                      </p>
-                      <p className="mt-1 text-sm font-medium text-[#ffd24a]/85">
-                        Màn cao nhất: {highestLevel}
-                      </p>
                       <button
                         type="button"
-                        className="mt-4 inline-flex h-10 items-center justify-center gap-2 rounded-md bg-[#f97316] px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[#ea580c]"
-                        onClick={() => handleRequestRestart(true)}
+                        className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-[#ffdd2f]/35 bg-[#2a0e05]/88 px-4 text-sm font-semibold text-[#fff1a6] shadow-sm transition hover:bg-[#3a1609]"
+                        onClick={() => handleRequestRestart()}
                       >
                         <RotateCcw className="h-4 w-4" aria-hidden="true" />
-                        Choi lai
+                        Chơi lại
                       </button>
-                    </div>
-                  </div>
-                ) : showNoPairsModal ? (
-                  <div className="pikachu-modal-backdrop absolute inset-0 z-30 flex items-center justify-center rounded-lg p-4">
-                    <div className="pikachu-glow-modal w-full max-w-sm rounded-lg border border-[#ffdd2f]/40 bg-[#351609] p-5 text-center shadow-xl">
-                      <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-md bg-[#4a1b0c] text-[#ffdd2f]">
-                        <Shuffle className="h-6 w-6" aria-hidden="true" />
-                      </div>
-                      <h2 className="text-xl font-bold text-[#ffdd2f]">Hết cặp có thể ăn</h2>
-                      <p className="mt-2 text-sm font-medium text-[#ffd24a]/85">
-                        Bố cục hiện tại không còn cặp hợp lệ. Hãy xáo lại để chơi tiếp.
-                      </p>
                       <button
                         type="button"
-                        className="mt-4 inline-flex h-10 items-center justify-center gap-2 rounded-md bg-[#f97316] px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[#ea580c]"
-                        onClick={handleShuffle}
+                        className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-[#ffdd2f]/35 bg-[#2a0e05]/88 px-4 text-sm font-semibold text-[#fff1a6] shadow-sm transition hover:bg-[#3a1609]"
+                        onClick={handleBackHome}
                       >
-                        <Shuffle className="h-4 w-4" aria-hidden="true" />
-                        Xáo lại
+                        <House className="h-4 w-4" aria-hidden="true" />
+                        Trang Chủ
                       </button>
                     </div>
-                  </div>
-                ) : null}
-                {confirmAction ? (
-                  <div
-                    className="pikachu-modal-backdrop absolute inset-0 z-40 flex items-center justify-center rounded-lg p-4"
-                    role="dialog"
-                    aria-modal="true"
-                  >
-                    <div className="pikachu-glow-modal w-full max-w-sm rounded-lg border border-[#ffdd2f]/40 bg-[#351609] p-5 text-center shadow-xl">
-                      <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-md bg-[#4a1b0c] text-[#ffdd2f]">
-                        {confirmAction.type === 'restart' ? (
-                          <RotateCcw className="h-6 w-6" aria-hidden="true" />
-                        ) : (
-                          <RefreshCw className="h-6 w-6" aria-hidden="true" />
-                        )}
-                      </div>
-                      <h2 className="text-xl font-bold text-[#ffdd2f]">
-                        {confirmAction.type === 'restart' ? 'Chơi lại?' : 'Reload game?'}
-                      </h2>
-                      <p className="mt-2 text-sm font-medium text-[#ffd24a]/85">
-                        {confirmAction.type === 'restart'
-                          ? 'Bạn có chắc muốn chơi lại? Ván hiện tại sẽ bắt đầu lại từ đầu.'
-                          : 'Bạn có chắc muốn reload game? Trang sẽ được tải lại ngay.'}
-                      </p>
-                      <div className="mt-4 grid grid-cols-2 gap-2">
-                        <button
-                          type="button"
-                          className="inline-flex h-10 items-center justify-center rounded-md border border-[#ffdd2f]/35 bg-[#2a0e05]/88 px-4 text-sm font-semibold text-[#fff1a6] shadow-sm transition hover:bg-[#3a1609]"
-                          onClick={handleCloseConfirm}
-                        >
-                          Hủy
-                        </button>
-                        <button
-                          type="button"
-                          className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-[#f97316] px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[#ea580c]"
-                          onClick={handleConfirmAction}
-                        >
-                          {confirmAction.type === 'restart' ? (
-                            <RotateCcw className="h-4 w-4" aria-hidden="true" />
-                          ) : (
-                            <RefreshCw className="h-4 w-4" aria-hidden="true" />
-                          )}
-                          Xác nhận
-                        </button>
-                      </div>
+                  }
+                />
+              ) : result !== 'playing' ? (
+                <ActionModal
+                  icon={
+                    result === 'won' ? (
+                      <Trophy className="h-6 w-6" aria-hidden="true" />
+                    ) : (
+                      <RefreshCw className="h-6 w-6" aria-hidden="true" />
+                    )
+                  }
+                  title={result === 'won' ? 'Hoàn thành' : 'Game Over'}
+                  description={`Điểm: ${score.toLocaleString('vi-VN')} | Kỷ lục: ${highScore.toLocaleString('vi-VN')}`}
+                  actions={
+                    <button
+                      type="button"
+                      className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-[#f97316] px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[#ea580c]"
+                      onClick={() => handleRequestRestart(true)}
+                    >
+                      <RotateCcw className="h-4 w-4" aria-hidden="true" />
+                      Choi lai
+                    </button>
+                  }
+                >
+                  <p className="mt-1 text-sm font-medium text-[#ffd24a]/85">Màn cao nhất: {highestLevel}</p>
+                </ActionModal>
+              ) : showNoPairsModal ? (
+                <ActionModal
+                  icon={<Shuffle className="h-6 w-6" aria-hidden="true" />}
+                  title="Hết cặp có thể ăn"
+                  description="Bố cục hiện tại không còn cặp hợp lệ. Hãy xáo lại để chơi tiếp."
+                  actions={
+                    <button
+                      type="button"
+                      className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-[#f97316] px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[#ea580c]"
+                      onClick={handleShuffle}
+                    >
+                      <Shuffle className="h-4 w-4" aria-hidden="true" />
+                      Xáo lại
+                    </button>
+                  }
+                />
+              ) : null}
+
+              {showDifficultyModal ? (
+                <DifficultyModal
+                  value={difficultyId}
+                  difficulties={DIFFICULTIES}
+                  onChange={(nextDifficultyId) => {
+                    setShowDifficultyModal(false)
+                    setPendingDifficultyId(nextDifficultyId)
+                  }}
+                  onClose={() => setShowDifficultyModal(false)}
+                />
+              ) : null}
+
+              {pendingDifficulty ? (
+                <ActionModal
+                  overlayClassName="z-40"
+                  icon={<Settings className="h-6 w-6" aria-hidden="true" />}
+                  title="Đổi mức chơi?"
+                  description={`Nếu đổi sang ${pendingDifficulty.label}, màn hiện tại sẽ bị mất và game sẽ bắt đầu lại.`}
+                  actions={
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        className="inline-flex h-10 items-center justify-center rounded-md border border-[#ffdd2f]/35 bg-[#2a0e05]/88 px-4 text-sm font-semibold text-[#fff1a6] shadow-sm transition hover:bg-[#3a1609]"
+                        onClick={() => setPendingDifficultyId(null)}
+                      >
+                        Hủy
+                      </button>
+                      <button
+                        type="button"
+                        className="inline-flex h-10 items-center justify-center rounded-md bg-[#f97316] px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[#ea580c]"
+                        onClick={() => {
+                          const nextDifficultyId = pendingDifficulty.id
+
+                          setPendingDifficultyId(null)
+                          handleDifficultyChange(nextDifficultyId)
+                        }}
+                      >
+                        Xác nhận
+                      </button>
                     </div>
-                  </div>
-                ) : null}
-              </div>
+                  }
+                />
+              ) : null}
+
+              {showSettingsModal ? (
+                <SettingsModal
+                  activeTab={activeSettingsTab}
+                  gameSettings={gameSettings}
+                  isInstalled={isInstalled}
+                  onTabChange={handleSettingsTabChange}
+                  onApplyAudioSettings={handleApplyAudioSettings}
+                  onInstallApp={() => {
+                    void handleInstallApp()
+                  }}
+                  onClose={handleCloseSettings}
+                />
+              ) : null}
+
+              {confirmAction ? (
+                <ActionModal
+                  overlayClassName="z-40"
+                  icon={
+                    confirmAction.type === 'restart' ? (
+                      <RotateCcw className="h-6 w-6" aria-hidden="true" />
+                    ) : confirmAction.type === 'shuffle' ? (
+                      <Shuffle className="h-6 w-6" aria-hidden="true" />
+                    ) : (
+                      <RefreshCw className="h-6 w-6" aria-hidden="true" />
+                    )
+                  }
+                  title={
+                    confirmAction.type === 'restart'
+                      ? 'Chơi lại?'
+                      : confirmAction.type === 'shuffle'
+                        ? 'Xáo lại?'
+                        : 'Reload game?'
+                  }
+                  description={
+                    confirmAction.type === 'restart'
+                      ? 'Bạn có chắc muốn chơi lại? Ván hiện tại sẽ bắt đầu lại từ đầu.'
+                      : confirmAction.type === 'shuffle'
+                        ? 'Vẫn còn cặp có thể ăn được. Bạn có chắc muốn dùng một lượt xáo?'
+                        : 'Bạn có chắc muốn reload game? Trang sẽ được tải lại ngay.'
+                  }
+                  actions={
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        className="inline-flex h-10 items-center justify-center rounded-md border border-[#ffdd2f]/35 bg-[#2a0e05]/88 px-4 text-sm font-semibold text-[#fff1a6] shadow-sm transition hover:bg-[#3a1609]"
+                        onClick={handleCloseConfirm}
+                      >
+                        Hủy
+                      </button>
+                      <button
+                        type="button"
+                        className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-[#f97316] px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[#ea580c]"
+                        onClick={handleConfirmAction}
+                      >
+                        {confirmAction.type === 'restart' ? (
+                          <RotateCcw className="h-4 w-4" aria-hidden="true" />
+                        ) : confirmAction.type === 'shuffle' ? (
+                          <Shuffle className="h-4 w-4" aria-hidden="true" />
+                        ) : (
+                          <RefreshCw className="h-4 w-4" aria-hidden="true" />
+                        )}
+                        Xác nhận
+                      </button>
+                    </div>
+                  }
+                />
+              ) : null}
             </section>
           </main>
         </div>
       </div>
     </section>
   )
-}
-
-function SideStat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex gap-2 justify-between text-center">
-      <div className="text-sm font-semibold leading-tight text-[#ffdd2f]">{label}</div>
-      <div className="mt-1 font-black leading-none text-[#ffdd2f]">{value}</div>
-    </div>
-  )
-}
-
-function ArcadeButton({
-  icon: Icon,
-  onClick,
-  label,
-  disabled,
-  badge,
-}: {
-  label?: string
-  icon: LucideIcon
-  onClick: () => void
-  disabled?: boolean
-  badge?: number
-}) {
-  return (
-    <button
-      type="button"
-      className="pikachu-action-button p-2 mb-2 inline-flex items-center gap-2 rounded-md border border-[#995018]/80 bg-[#421607]/75 text-xs font-black text-[#ffc400] shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] transition hover:bg-[#562008] disabled:cursor-not-allowed disabled:opacity-45"
-      onClick={onClick}
-      disabled={disabled}
-    >
-      <span className="relative inline-flex shrink-0">
-        <Icon className="h-4 w-4" aria-hidden="true" />
-        {badge !== undefined ? (
-          <span className="absolute -right-4 -top-4 inline-flex min-w-4 items-center justify-center rounded-full bg-[#ffdd2f] px-1 text-[10px] text-[#3b1406]">
-            {badge}
-          </span>
-        ) : null}
-      </span>
-      {label}
-    </button>
-  )
-}
-
-function TileFace({ symbol }: { symbol: TileSymbol }) {
-  const [imageFailed, setImageFailed] = useState(false)
-
-  if (symbol.imageSrc && !imageFailed) {
-    return (
-      <img
-        className="h-full w-full select-none object-cover"
-        src={symbol.imageSrc}
-        alt=""
-        draggable={false}
-        aria-hidden="true"
-        onError={() => setImageFailed(true)}
-      />
-    )
-  }
-
-  const Icon = symbol.Icon
-
-  return <Icon className="h-full w-full select-none" strokeWidth={2.4} aria-hidden="true" />
 }

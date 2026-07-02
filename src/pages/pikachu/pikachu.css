@@ -1,0 +1,150 @@
+.pikachu-rotate-lock {
+  display: none;
+}
+
+.pikachu-glow-modal {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-color: rgba(255, 221, 47, 0.52);
+  background-color: rgba(22, 7, 3, 0.8);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  box-shadow:
+    0 0 18px rgba(255, 221, 47, 0.18),
+    0 18px 45px rgba(0, 0, 0, 0.42);
+}
+
+.pikachu-board-stage {
+  background-image:
+    linear-gradient(135deg, rgba(10, 3, 1, 0.26), rgba(10, 3, 1, 0.58)),
+    url("/images/pikachu/fantastic-pokemon-home.webp");
+  background-position: center;
+  background-size: cover;
+}
+
+.pikachu-modal-backdrop {
+  background: rgba(10, 3, 1, 0.5);
+  backdrop-filter: blur(1px);
+  -webkit-backdrop-filter: blur(1px);
+}
+
+.pikachu-home-modal {
+  min-height: min(520px, calc(100dvh - 2rem));
+}
+
+.pikachu-glow-modal::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: inherit;
+  padding: 2px;
+  pointer-events: none;
+  background: conic-gradient(
+    from var(--pikachu-modal-border-angle, 0deg),
+    rgba(255, 221, 47, 0.12),
+    rgba(255, 234, 0, 0.95),
+    rgba(249, 115, 22, 0.95),
+    rgba(156, 255, 0, 0.9),
+    rgba(255, 221, 47, 0.12)
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: pikachu-modal-border-spin 2.4s linear infinite;
+}
+
+.pikachu-glow-modal > * {
+  position: relative;
+  z-index: 1;
+}
+
+@property --pikachu-modal-border-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@keyframes pikachu-modal-border-spin {
+  to {
+    --pikachu-modal-border-angle: 360deg;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pikachu-glow-modal::before {
+    animation: none;
+  }
+}
+
+@media (min-width: 921px) {
+  .pikachu-board-grid {
+    left: 3% !important;
+    width: min(94%, calc((100dvh - 5rem) * 16 / 9)) !important;
+  }
+
+  .pikachu-glow-modal {
+    font-size: 1rem;
+  }
+}
+
+@media (min-width: 1280px) {
+  .pikachu-board-grid {
+    left: 2.5% !important;
+    width: min(95%, calc((100dvh - 5.75rem) * 16 / 9)) !important;
+  }
+}
+
+@media (max-width: 920px) {
+  .pikachu-game-tile-face {
+    height: 88%;
+    width: 88%;
+    object-fit: contain;
+  }
+}
+
+@media (max-width: 920px) and (orientation: portrait) {
+  .pikachu-game-root {
+    overflow: hidden;
+  }
+
+  .pikachu-rotate-lock {
+    position: fixed;
+    inset: 0;
+    z-index: 80;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    padding: 1.5rem;
+    background: radial-gradient(circle at 50% 0%, rgba(107, 45, 14, 0.96), rgba(23, 7, 3, 0.98) 58%);
+    color: #ffdd2f;
+    text-align: center;
+  }
+
+  .pikachu-rotate-lock-icon {
+    display: inline-flex;
+    height: 3.5rem;
+    width: 3.5rem;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.75rem;
+    border: 1px solid rgba(255, 196, 0, 0.42);
+    background: rgba(66, 22, 7, 0.82);
+    box-shadow: 0 0 24px rgba(255, 213, 31, 0.18);
+  }
+}
+
+@media (max-width: 920px) and (orientation: landscape) {
+  .pikachu-game-root {
+    overflow: hidden;
+  }
+
+  .pikachu-game-root > div {
+    padding: 0;
+  }
+}
