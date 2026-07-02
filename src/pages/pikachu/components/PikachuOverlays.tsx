@@ -1,9 +1,10 @@
 import type { ReactNode } from 'react'
-import { Check, Download, Music2, Play, Settings, Trophy, Volume2, VolumeX } from 'lucide-react'
+import { Check, Download, Image, Music2, Play, Settings, Trophy, Volume2, VolumeX } from 'lucide-react'
 
 import type { PikachuLeaderboardEntry } from '@/services/pikachu.service'
 
-import type { DifficultyConfig, DifficultyId, GameSettings, SettingsTab } from '../types'
+import type { DifficultyConfig, DifficultyId, GameSettings, PikachuMode, SettingsTab, TileSymbol } from '../types'
+import { TileFace } from './TileFace'
 
 type PlayerNameModalProps = {
   playerNameDraft: string
@@ -28,8 +29,11 @@ type StartOverlayProps = {
 type SettingsModalProps = {
   activeTab: SettingsTab
   gameSettings: GameSettings
+  activeModeCode: string
+  modeOptions: Array<{ mode: PikachuMode; symbols: TileSymbol[] }>
   isInstalled: boolean
   onTabChange: (tab: SettingsTab) => void
+  onModeChange: (modeCode: string) => void
   onApplyAudioSettings: (
     updates: Partial<Pick<GameSettings, 'musicEnabled' | 'soundEnabled' | 'musicVolume' | 'soundVolume'>>,
   ) => void
@@ -314,8 +318,11 @@ export function StartOverlay({
 export function SettingsModal({
   activeTab,
   gameSettings,
+  activeModeCode,
+  modeOptions,
   isInstalled,
   onTabChange,
+  onModeChange,
   onApplyAudioSettings,
   onInstallApp,
   onClose,
@@ -329,15 +336,24 @@ export function SettingsModal({
           </div>
           <div className="text-xl font-black text-[#ffdd2f]">Cài đặt game</div>
         </div>
-        <div className="mt-4 grid grid-cols-2 gap-2 rounded-md border border-[#995018]/70 bg-[#2a0e05]/70">
+        <div className="mt-4 grid grid-cols-3 gap-2 rounded-md border border-[#995018]/70 bg-[#2a0e05]/70">
           <button
             type="button"
-            className={`inline-flex items-center justify-center rounded-md px-3 text-sm font-semibold transition ${
+            className={`inline-flex h-10 items-center justify-center rounded-md px-3 text-sm font-semibold transition ${
               activeTab === 'audio' ? 'bg-[#f97316] text-white shadow-sm' : 'text-[#fff1a6] hover:bg-[#3a1609]'
             }`}
             onClick={() => onTabChange('audio')}
           >
             Âm thanh
+          </button>
+          <button
+            type="button"
+            className={`inline-flex h-10 items-center justify-center rounded-md px-3 text-sm font-semibold transition ${
+              activeTab === 'mode' ? 'bg-[#f97316] text-white shadow-sm' : 'text-[#fff1a6] hover:bg-[#3a1609]'
+            }`}
+            onClick={() => onTabChange('mode')}
+          >
+            Mode
           </button>
           <button
             type="button"
@@ -423,6 +439,58 @@ export function SettingsModal({
                 </button>
               </div>
             </div>
+          </div>
+        ) : activeTab === 'mode' ? (
+          <div className="mt-4 grid gap-3">
+            {modeOptions.map(({ mode, symbols }) => {
+              const selected = gameSettings.modeCode === mode.code
+              const current = activeModeCode === mode.code
+
+              return (
+                <button
+                  key={mode.code}
+                  type="button"
+                  className={`rounded-md border p-3 text-left transition ${
+                    selected
+                      ? 'border-[#ffdd2f]/70 bg-[#5a3309]/75 shadow-[0_0_18px_rgba(255,221,47,0.12)]'
+                      : 'border-[#995018]/70 bg-[#2a0e05]/70 hover:bg-[#3a1609]'
+                  }`}
+                  onClick={() => onModeChange(mode.code)}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 text-sm font-black text-[#ffdd2f]">
+                        <Image className="h-4 w-4 shrink-0" aria-hidden="true" />
+                        <span className="truncate">{mode.name}</span>
+                      </div>
+                      {mode.description ? (
+                        <div className="mt-1 line-clamp-2 text-xs font-semibold text-[#ffd24a]/75">{mode.description}</div>
+                      ) : null}
+                    </div>
+                    <div className="flex shrink-0 flex-col items-end gap-1">
+                      {selected ? (
+                        <span className="rounded-md bg-[#f97316] px-2 py-1 text-[10px] font-black text-white">Đã chọn</span>
+                      ) : null}
+                      {current ? (
+                        <span className="rounded-md border border-[#ffdd2f]/35 px-2 py-1 text-[10px] font-black text-[#ffdd2f]">
+                          Đang chơi
+                        </span>
+                      ) : null}
+                    </div>
+                  </div>
+                  <div className="mt-3 grid grid-cols-6 gap-1">
+                    {symbols.slice(0, 6).map((symbol) => (
+                      <div
+                        key={`${mode.code}-${symbol.id}`}
+                        className="aspect-square overflow-hidden rounded-[2px] border border-[#ffdd2f]/25 bg-[#fff1a6]"
+                      >
+                        <TileFace symbol={symbol} />
+                      </div>
+                    ))}
+                  </div>
+                </button>
+              )
+            })}
           </div>
         ) : (
           <div className="mt-4 grid gap-4">

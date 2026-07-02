@@ -1,5 +1,5 @@
-import { TILE_SYMBOLS, symbolById } from '../constants'
-import type { Board, DifficultyConfig, MatchPair, Position } from '../types'
+import { TILE_SYMBOLS } from '../constants'
+import type { Board, DifficultyConfig, MatchPair, Position, TileSymbol } from '../types'
 import { samePosition } from '../utils/board'
 import { TileFace } from './TileFace'
 
@@ -12,6 +12,7 @@ type PikachuBoardProps = {
   canInteract: boolean
   shouldHideBoard: boolean
   timeProgress: number
+  symbolLookup: Record<string, TileSymbol>
   onTileClick: (position: Position) => void
 }
 
@@ -24,6 +25,7 @@ export function PikachuBoard({
   canInteract,
   shouldHideBoard,
   timeProgress,
+  symbolLookup,
   onTileClick,
 }: PikachuBoardProps) {
   return (
@@ -53,7 +55,7 @@ export function PikachuBoard({
               )
             }
 
-            const symbol = symbolById[tile.symbolId] || TILE_SYMBOLS[0]
+            const symbol = symbolLookup[tile.symbolId] || TILE_SYMBOLS[0]
             const isSelected = selected ? samePosition(selected, position) : false
             const isInactive = inactivePositions.some((lockedPosition) => samePosition(lockedPosition, position))
             const isHinted = hint && (samePosition(hint.first, position) || samePosition(hint.second, position))

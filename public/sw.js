@@ -1,4 +1,4 @@
-const PWA_ASSET_VERSION = '20260701-safe-area'
+const PWA_ASSET_VERSION = '20260702-pikachu-mode-cache'
 const SHELL_CACHE = `pikachu-shell-${PWA_ASSET_VERSION}`
 const RUNTIME_CACHE = `pikachu-runtime-${PWA_ASSET_VERSION}`
 const withPwaVersion = (path) => `${path}?v=${PWA_ASSET_VERSION}`
@@ -90,6 +90,22 @@ async function networkFirstPwaAsset(request) {
   }
 }
 
+self.addEventListener('message', (event) => {
+  const data = event.data || {}
+
+  if (data.type !== 'CACHE_PIKACHU_MODE_ASSETS' || !Array.isArray(data.urls)) return
+
+  event.waitUntil(
+    caches.open(RUNTIME_CACHE).then((cache) =>
+      Promise.all(
+        data.urls
+          .filter((url) => typeof url === 'string' && url.startsWith('/'))
+          .map((url) => cache.add(url).catch(() => undefined)),
+      ),
+    ),
+  )
+})
+
 self.addEventListener('fetch', (event) => {
   const { request } = event
 
@@ -105,6 +121,11 @@ self.addEventListener('fetch', (event) => {
   }
 
   if (url.pathname === '/manifest.webmanifest' || url.pathname.startsWith('/pwa/')) {
+    event.respondWith(networkFirstPwaAsset(request))
+    return
+  }
+
+  if (url.pathname === '/api/pikachu/bootstrap') {
     event.respondWith(networkFirstPwaAsset(request))
     return
   }

@@ -22,6 +22,7 @@ import PlatformProfilePage from '@/pages/platform/profile'
 import PlatformSetupPage from '@/pages/platform/setup'
 import PlatformWelcomePage from '@/pages/platform/welcome'
 import PikachuPage from '@/pages/pikachu'
+import PikachuAdminPage from '@/pages/pikachu/admin'
 import ServicePage from '@/pages/service'
 import SessionDetailPage from '@/pages/sessions/detail'
 import SessionFormPage from '@/pages/sessions/form'
@@ -328,6 +329,16 @@ const router = createBrowserRouter([
       {
         path: 'pikachu',
         element: <PikachuPage />,
+      },
+      {
+        path: 'game/pikachu',
+        element: (
+          <ProtectedRoute>
+            <AdminRoute>
+              <PikachuAdminPage />
+            </AdminRoute>
+          </ProtectedRoute>
+        ),
       },
     ],
   },

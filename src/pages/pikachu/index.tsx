@@ -15,9 +15,9 @@ import {
   Trophy,
 } from 'lucide-react'
 
-import { pikachuService, type PikachuLeaderboardEntry } from '@/services/pikachu.service'
+import { pikachuService, type PikachuBootstrapResponse, type PikachuLeaderboardEntry, type SavePikachuGamePayload } from '@/services/pikachu.service'
 
-import { DIFFICULTIES, LEVELS, getDifficulty, getLevelConfig } from './constants'
+import { DEFAULT_PIKACHU_MODES, DIFFICULTIES, LEVELS, getDifficulty, getLevelConfig, getModeByCode, getModeSymbols, symbolsById } from './constants'
 import './pikachu.css'
 import { ArcadeButton } from './components/ArcadeButton'
 import { PikachuBoard } from './components/PikachuBoard'
@@ -27,10 +27,14 @@ import { usePikachuAudio } from './hooks/usePikachuAudio'
 import type {
   BeforeInstallPromptEvent,
   ConfirmAction,
+  DifficultyConfig,
   DifficultyId,
   GameResult,
   GameSettings,
+  LevelConfig,
   MatchPair,
+  PikachuBootstrapCache,
+  PikachuMode,
   Position,
   SavedGameState,
   SettingsTab,
@@ -52,30 +56,82 @@ import {
 import {
   clampPercentage,
   clearSavedGame,
+  enqueueOfflinePikachuScore,
   readGameSettings,
   readHighScore,
   readHighestLevel,
+  readOfflinePikachuScores,
+  readPikachuBootstrapCache,
   readPlayerName,
   readSavedGame,
+  removeOfflinePikachuScore,
   writeGameSettings,
   writeHighScore,
   writeHighestLevel,
+  writeOfflinePikachuScores,
+  writePikachuBootstrapCache,
   writePlayerName,
   writeSavedGame,
 } from './utils/storage'
 
+function createClientEventId() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID()
+  }
+
+  return `pikachu-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`
+}
+
+function buildBootstrapCache(bootstrap: PikachuBootstrapResponse): PikachuBootstrapCache {
+  return {
+    version: bootstrap.version,
+    assetVersion: bootstrap.assetVersion,
+    modes: bootstrap.modes?.length ? bootstrap.modes : DEFAULT_PIKACHU_MODES,
+    difficulties: bootstrap.difficulties?.length ? bootstrap.difficulties : DIFFICULTIES,
+    levels: bootstrap.levels?.length ? bootstrap.levels : LEVELS,
+    savedAt: Date.now(),
+  }
+}
+
+function cacheModeAssets(modes: PikachuMode[], assetVersion: string) {
+  if (typeof navigator === 'undefined' || !navigator.serviceWorker?.controller) return
+
+  const urls = modes.flatMap((mode) => mode.assets.map((asset) => asset.imageSrc).filter((url): url is string => Boolean(url)))
+
+  if (urls.length === 0) return
+
+  navigator.serviceWorker.controller.postMessage({
+    type: 'CACHE_PIKACHU_MODE_ASSETS',
+    assetVersion,
+    urls,
+  })
+}
+
 export default function PikachuPage() {
-  const [gameSettings, setGameSettings] = useState<GameSettings>(readGameSettings)
+  const [bootstrapCache, setBootstrapCache] = useState<PikachuBootstrapCache | null>(readPikachuBootstrapCache)
+  const [availableModes, setAvailableModes] = useState<PikachuMode[]>(() => bootstrapCache?.modes || DEFAULT_PIKACHU_MODES)
+  const [availableDifficulties, setAvailableDifficulties] = useState<DifficultyConfig[]>(
+    () => bootstrapCache?.difficulties || DIFFICULTIES,
+  )
+  const [availableLevels, setAvailableLevels] = useState<LevelConfig[]>(() => bootstrapCache?.levels || LEVELS)
+  const [savedGame, setSavedGame] = useState<SavedGameState | null>(readSavedGame)
+  const [gameSettings, setGameSettings] = useState<GameSettings>(() => {
+    const settings = readGameSettings()
+    return savedGame ? { ...settings, modeCode: savedGame.modeCode } : settings
+  })
   const [showSettingsModal, setShowSettingsModal] = useState(false)
   const [showDifficultyModal, setShowDifficultyModal] = useState(false)
   const [pendingDifficultyId, setPendingDifficultyId] = useState<DifficultyId | null>(null)
   const [activeSettingsTab, setActiveSettingsTab] = useState<SettingsTab>('audio')
-  const defaultDifficulty = getDifficulty(gameSettings.difficultyId)
-  const [savedGame, setSavedGame] = useState<SavedGameState | null>(readSavedGame)
-  const initialDifficulty = savedGame ? getDifficulty(savedGame.difficultyId) : defaultDifficulty
+  const defaultDifficulty = getDifficulty(gameSettings.difficultyId, availableDifficulties)
+  const initialDifficulty = savedGame ? getDifficulty(savedGame.difficultyId, availableDifficulties) : defaultDifficulty
+  const initialModeCode = savedGame?.modeCode || gameSettings.modeCode
+  const initialMode = getModeByCode(initialModeCode, availableModes)
+  const initialTileSymbols = getModeSymbols(initialMode.code, availableModes)
   const [difficultyId, setDifficultyId] = useState<DifficultyId>(savedGame?.difficultyId || gameSettings.difficultyId)
+  const [activeModeCode, setActiveModeCode] = useState(initialMode.code)
   const [currentLevel, setCurrentLevel] = useState(savedGame?.currentLevel || 1)
-  const [board, setBoard] = useState(() => savedGame?.board || createBoard(initialDifficulty))
+  const [board, setBoard] = useState(() => savedGame?.board || createBoard(initialDifficulty, initialTileSymbols))
   const [selected, setSelected] = useState<Position | null>(null)
   const [inactivePositions, setInactivePositions] = useState<Position[]>([])
   const [hint, setHint] = useState<MatchPair | null>(null)
@@ -107,12 +163,23 @@ export default function PikachuPage() {
   const currentGameSnapshotRef = useRef<SavedGameState | null>(null)
   const wrongSelectionTimerRef = useRef<number | null>(null)
 
-  const difficulty = useMemo(() => getDifficulty(difficultyId), [difficultyId])
-  const pendingDifficulty = useMemo(
-    () => (pendingDifficultyId ? getDifficulty(pendingDifficultyId) : null),
-    [pendingDifficultyId],
+  const difficulty = useMemo(() => getDifficulty(difficultyId, availableDifficulties), [availableDifficulties, difficultyId])
+  const activeMode = useMemo(() => getModeByCode(activeModeCode, availableModes), [activeModeCode, availableModes])
+  const activeTileSymbols = useMemo(() => getModeSymbols(activeMode.code, availableModes), [activeMode.code, availableModes])
+  const activeSymbolLookup = useMemo(() => symbolsById(activeTileSymbols), [activeTileSymbols])
+  const modeOptions = useMemo(
+    () =>
+      availableModes.filter((mode) => mode.isEnabled).map((mode) => ({
+        mode,
+        symbols: getModeSymbols(mode.code, availableModes),
+      })),
+    [availableModes],
   )
-  const currentLevelConfig = useMemo(() => getLevelConfig(currentLevel), [currentLevel])
+  const pendingDifficulty = useMemo(
+    () => (pendingDifficultyId ? getDifficulty(pendingDifficultyId, availableDifficulties) : null),
+    [availableDifficulties, pendingDifficultyId],
+  )
+  const currentLevelConfig = useMemo(() => getLevelConfig(currentLevel, availableLevels), [availableLevels, currentLevel])
   const remainingTiles = useMemo(() => countTiles(board), [board])
   const timeProgress = Math.max(0, Math.min(100, (timeLeft / difficulty.timeLimit) * 100))
   const playablePairs = useMemo(() => findPlayablePairs(board), [board])
@@ -158,9 +225,40 @@ export default function PikachuPage() {
       })
   }, [])
 
+  const syncOfflineScores = useCallback(() => {
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) return
+
+    const queuedScores = readOfflinePikachuScores<SavePikachuGamePayload>()
+    if (queuedScores.length === 0) return
+
+    let hasSyncedScore = false
+
+    queuedScores.reduce<Promise<void>>(async (chain, queuedScore) => {
+      await chain
+
+      try {
+        await pikachuService.saveGame(queuedScore.payload)
+        removeOfflinePikachuScore(queuedScore.clientEventId)
+        hasSyncedScore = true
+      } catch {
+        const latestScores = readOfflinePikachuScores<SavePikachuGamePayload>()
+        writeOfflinePikachuScores(
+          latestScores.map((score) =>
+            score.clientEventId === queuedScore.clientEventId ? { ...score, attempts: score.attempts + 1 } : score,
+          ),
+        )
+      }
+    }, Promise.resolve()).then(() => {
+      if (hasSyncedScore) {
+        loadLeaderboard()
+      }
+    })
+  }, [loadLeaderboard])
+
   const resetGame = useCallback(
-    (nextDifficultyId = difficultyId, autoStart = hasStarted) => {
-      const nextDifficulty = getDifficulty(nextDifficultyId)
+    (nextDifficultyId = difficultyId, autoStart = hasStarted, nextModeCode = gameSettings.modeCode) => {
+      const nextDifficulty = getDifficulty(nextDifficultyId, availableDifficulties)
+      const nextTileSymbols = getModeSymbols(nextModeCode, availableModes)
 
       clearSavedGame()
       currentGameSnapshotRef.current = null
@@ -170,8 +268,9 @@ export default function PikachuPage() {
       }
       setSavedGame(null)
       setDifficultyId(nextDifficulty.id)
+      setActiveModeCode(getModeByCode(nextModeCode, availableModes).code)
       setCurrentLevel(1)
-      setBoard(createBoard(nextDifficulty))
+      setBoard(createBoard(nextDifficulty, nextTileSymbols))
       setSelected(null)
       setInactivePositions([])
       setHint(null)
@@ -187,9 +286,9 @@ export default function PikachuPage() {
       setShowNoPairsModal(false)
       setCompletedLevel(null)
       hasSavedGameOverRef.current = false
-      setStatus(autoStart ? `Màn 1: ${getLevelConfig(1).title}` : 'Nhấn Bắt đầu để chơi')
+      setStatus(autoStart ? `Màn 1: ${getLevelConfig(1, availableLevels).title}` : 'Nhấn Bắt đầu để chơi')
     },
-    [difficultyId, hasStarted],
+    [availableDifficulties, availableLevels, availableModes, difficultyId, gameSettings.modeCode, hasStarted],
   )
 
   const clearWrongSelectionState = useCallback(() => {
@@ -222,6 +321,7 @@ export default function PikachuPage() {
     return {
       result: 'playing',
       difficultyId,
+      modeCode: activeModeCode,
       currentLevel,
       board,
       score,
@@ -238,6 +338,7 @@ export default function PikachuPage() {
     combo,
     currentLevel,
     difficultyId,
+    activeModeCode,
     hasStarted,
     hintsLeft,
     mistakes,
@@ -355,9 +456,35 @@ export default function PikachuPage() {
       playSoundEffect('action')
       setShowDifficultyModal(false)
       clearWrongSelectionState()
-      resetGame(nextDifficultyId, false)
+      resetGame(nextDifficultyId, false, gameSettings.modeCode)
     },
     [clearWrongSelectionState, difficultyId, gameSettings, playSoundEffect, resetGame],
+  )
+
+  const handleModeChange = useCallback(
+    (nextModeCode: string) => {
+      const nextMode = getModeByCode(nextModeCode, availableModes)
+      if (nextMode.code === gameSettings.modeCode) return
+
+      const nextSettings: GameSettings = {
+        ...gameSettings,
+        modeCode: nextMode.code,
+      }
+
+      setGameSettings(nextSettings)
+      writeGameSettings(nextSettings)
+      playSoundEffect('action')
+
+      if (!hasStarted) {
+        clearWrongSelectionState()
+        resetGame(difficultyId, false, nextMode.code)
+        setStatus(`Đã chọn mode ${nextMode.name}`)
+        return
+      }
+
+      setStatus(`Mode ${nextMode.name} sẽ áp dụng từ ván mới`)
+    },
+    [availableModes, clearWrongSelectionState, difficultyId, gameSettings, hasStarted, playSoundEffect, resetGame],
   )
 
   const handleApplyAudioSettings = useCallback(
@@ -437,7 +564,7 @@ export default function PikachuPage() {
         const remaining = countTiles(arrangedBoard)
 
         if (remaining === 0) {
-          if (currentLevel < LEVELS.length) {
+          if (currentLevel < availableLevels.length) {
             const nextLevel = currentLevel + 1
 
             setCurrentLevel(nextLevel)
@@ -451,7 +578,7 @@ export default function PikachuPage() {
             setCompletedLevel(currentLevel)
             setStatus(`Hoàn thành màn ${currentLevel}. Chọn tiếp tục để chơi màn ${nextLevel}`)
 
-            return createBoard(difficulty)
+            return createBoard(difficulty, activeTileSymbols)
           }
 
           setResult('won')
@@ -468,7 +595,17 @@ export default function PikachuPage() {
         return arrangedBoard
       })
     },
-    [clearWrongSelectionState, currentLevel, currentLevelConfig.arrangement, difficulty, playSoundEffect, shufflesLeft, timeLeft],
+    [
+      activeTileSymbols,
+      availableLevels.length,
+      clearWrongSelectionState,
+      currentLevel,
+      currentLevelConfig.arrangement,
+      difficulty,
+      playSoundEffect,
+      shufflesLeft,
+      timeLeft,
+    ],
   )
 
   const handleTileClick = useCallback(
@@ -669,8 +806,69 @@ export default function PikachuPage() {
   }, [playerName])
 
   useEffect(() => {
+    let isActive = true
+
+    void pikachuService
+      .getBootstrap()
+      .then((bootstrap) => {
+        if (!isActive) return
+
+        const cache = buildBootstrapCache(bootstrap)
+
+        setBootstrapCache(cache)
+        setAvailableModes(cache.modes)
+        setAvailableDifficulties(cache.difficulties)
+        setAvailableLevels(cache.levels)
+        setActiveModeCode((currentModeCode) => getModeByCode(currentModeCode, cache.modes).code)
+        setGameSettings((currentSettings) => {
+          const resolvedModeCode = getModeByCode(currentSettings.modeCode, cache.modes).code
+
+          if (resolvedModeCode === currentSettings.modeCode) return currentSettings
+
+          const nextSettings = { ...currentSettings, modeCode: resolvedModeCode }
+          writeGameSettings(nextSettings)
+
+          return nextSettings
+        })
+        writePikachuBootstrapCache(cache)
+        cacheModeAssets(cache.modes, cache.assetVersion)
+
+        if (bootstrap.leaderboard?.length) {
+          setLeaderboard(bootstrap.leaderboard.slice(0, 10))
+          setLeaderboardError(null)
+        }
+      })
+      .catch(() => {
+        if (bootstrapCache) {
+          cacheModeAssets(bootstrapCache.modes, bootstrapCache.assetVersion)
+        }
+      })
+
+    return () => {
+      isActive = false
+    }
+  }, [])
+
+  useEffect(() => {
     loadLeaderboard()
   }, [loadLeaderboard])
+
+  useEffect(() => {
+    syncOfflineScores()
+
+    if (typeof window === 'undefined') return undefined
+
+    const handleOnline = () => syncOfflineScores()
+    const handleFocus = () => syncOfflineScores()
+
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('focus', handleFocus)
+
+    return () => {
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('focus', handleFocus)
+    }
+  }, [syncOfflineScores])
 
   useEffect(() => {
     currentGameSnapshotRef.current = buildCurrentSavedGame()
@@ -721,28 +919,40 @@ export default function PikachuPage() {
     if (result === 'playing' || !hasStarted || !playerName || hasSavedGameOverRef.current) return
 
     hasSavedGameOverRef.current = true
+    const clientEventId = createClientEventId()
+    const payload: SavePikachuGamePayload = {
+      client_event_id: clientEventId,
+      player_name: playerName,
+      score,
+      level_reached: currentLevel,
+      highest_level: Math.max(highestLevel, currentLevel),
+      result,
+      time_left: timeLeft,
+      difficulty_id: difficultyId,
+      mode_code: activeModeCode,
+      is_standalone: isStandaloneDisplayMode(),
+      stats: {
+        combo,
+        mistakes,
+        hints_left: hintsLeft,
+        shuffles_left: shufflesLeft,
+        remaining_tiles: remainingTiles,
+      },
+    }
 
     void pikachuService
-      .saveGame({
-        player_name: playerName,
-        score,
-        level_reached: currentLevel,
-        highest_level: Math.max(highestLevel, currentLevel),
-        result,
-        time_left: timeLeft,
-        difficulty_id: difficultyId,
-        is_standalone: isStandaloneDisplayMode(),
-        stats: {
-          combo,
-          mistakes,
-          hints_left: hintsLeft,
-          shuffles_left: shufflesLeft,
-          remaining_tiles: remainingTiles,
-        },
-      })
+      .saveGame(payload)
       .then(() => loadLeaderboard())
-      .catch(() => undefined)
+      .catch(() => {
+        enqueueOfflinePikachuScore({
+          clientEventId,
+          payload,
+          createdAt: Date.now(),
+          attempts: 0,
+        })
+      })
   }, [
+    activeModeCode,
     combo,
     currentLevel,
     difficultyId,
@@ -959,6 +1169,7 @@ export default function PikachuPage() {
                 canInteract={canInteract}
                 shouldHideBoard={shouldHideBoard}
                 timeProgress={timeProgress}
+                symbolLookup={activeSymbolLookup}
                 onTileClick={handleTileClick}
               />
 
@@ -1070,7 +1281,7 @@ export default function PikachuPage() {
               {showDifficultyModal ? (
                 <DifficultyModal
                   value={difficultyId}
-                  difficulties={DIFFICULTIES}
+                  difficulties={availableDifficulties}
                   onChange={(nextDifficultyId) => {
                     setShowDifficultyModal(false)
                     setPendingDifficultyId(nextDifficultyId)
@@ -1115,8 +1326,11 @@ export default function PikachuPage() {
                 <SettingsModal
                   activeTab={activeSettingsTab}
                   gameSettings={gameSettings}
+                  activeModeCode={activeModeCode}
+                  modeOptions={modeOptions}
                   isInstalled={isInstalled}
                   onTabChange={handleSettingsTabChange}
+                  onModeChange={handleModeChange}
                   onApplyAudioSettings={handleApplyAudioSettings}
                   onInstallApp={() => {
                     void handleInstallApp()

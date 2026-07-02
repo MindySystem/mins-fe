@@ -8,6 +8,7 @@ import type {
   Position,
   SearchNode,
   Tile,
+  TileSymbol,
 } from '../types'
 
 const DIRECTIONS = [
@@ -184,10 +185,10 @@ function findPath(board: Board, first: Position, second: Position): PathPoint[] 
   return null
 }
 
-export function createBoard(config: DifficultyConfig): Board {
+export function createBoard(config: DifficultyConfig, tileSymbols: TileSymbol[] = TILE_SYMBOLS): Board {
   const totalTiles = config.rows * config.cols
   const pairCount = totalTiles / 2
-  const symbols = TILE_SYMBOLS.slice(0, config.symbolCount)
+  const symbols = tileSymbols.slice(0, config.symbolCount)
   const tiles: Tile[] = []
 
   for (let pairIndex = 0; pairIndex < pairCount; pairIndex += 1) {

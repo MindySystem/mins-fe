@@ -37,6 +37,7 @@ const titleMap: Record<string, string> = {
   '/shop-moto/vehicle-registration-history': 'Lịch sử đăng ký xe moto',
   '/shop-moto-admin': 'Quản trị Shop Moto',
   '/pikachu': 'Pikachu cổ điển',
+  '/game/pikachu': 'Quản trị Pikachu',
   '/admin': 'Administrator Portal',
   '/admin/users': 'Admin Users',
   '/admin/workspaces': 'Admin Workspaces',

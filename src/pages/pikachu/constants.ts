@@ -19,7 +19,7 @@ import {
   Zap,
 } from 'lucide-react'
 
-import type { DifficultyConfig, DifficultyId, GameSettings, LevelConfig, TileSymbol } from './types'
+import type { DifficultyConfig, DifficultyId, GameSettings, LevelConfig, PikachuMode, PikachuModeAsset, TileSymbol } from './types'
 
 export const STORAGE_KEYS = {
   highScore: 'mins-pikachu-connect-high-score',
@@ -27,9 +27,14 @@ export const STORAGE_KEYS = {
   playerName: 'mins-pikachu-player-name',
   savedGame: 'mins-pikachu-connect-saved-game',
   gameSettings: 'mins-pikachu-game-settings',
+  bootstrapCache: 'mins-pikachu-bootstrap-cache',
+  offlineScores: 'mins-pikachu-offline-scores',
 } as const
 
 export const DEFAULT_DIFFICULTY_ID: DifficultyId = 'classic'
+export const DEFAULT_MODE_CODE = 'pikachu-images'
+export const PIKACHU_BOOTSTRAP_VERSION = '2026-07-02.1'
+export const PIKACHU_ASSET_VERSION = 'pikachu-assets-20260702'
 const PIKACHU_IMAGE_COUNT = 36
 const PIKACHU_IMAGE_REPEAT = 4
 const BOARD_ROWS = 9
@@ -38,31 +43,37 @@ const PIKACHU_IMAGE_PATH = '/images/pikachu'
 
 export const DEFAULT_GAME_SETTINGS: GameSettings = {
   difficultyId: DEFAULT_DIFFICULTY_ID,
+  modeCode: DEFAULT_MODE_CODE,
   musicEnabled: true,
   soundEnabled: true,
   musicVolume: 40,
   soundVolume: 65,
 }
 
-const FALLBACK_TILE_ICONS: LucideIcon[] = [
-  Apple,
-  Banana,
-  Cherry,
-  Grape,
-  Gem,
-  Star,
-  Heart,
-  Sun,
-  Moon,
-  Leaf,
-  Candy,
-  Zap,
-  Flower2,
-  Shell,
-  Crown,
-  Fish,
-  IceCreamBowl,
+const FALLBACK_TILE_ICON_ENTRIES: Array<{ name: string; Icon: LucideIcon }> = [
+  { name: 'apple', Icon: Apple },
+  { name: 'banana', Icon: Banana },
+  { name: 'cherry', Icon: Cherry },
+  { name: 'grape', Icon: Grape },
+  { name: 'gem', Icon: Gem },
+  { name: 'star', Icon: Star },
+  { name: 'heart', Icon: Heart },
+  { name: 'sun', Icon: Sun },
+  { name: 'moon', Icon: Moon },
+  { name: 'leaf', Icon: Leaf },
+  { name: 'candy', Icon: Candy },
+  { name: 'zap', Icon: Zap },
+  { name: 'flower', Icon: Flower2 },
+  { name: 'shell', Icon: Shell },
+  { name: 'crown', Icon: Crown },
+  { name: 'fish', Icon: Fish },
+  { name: 'ice-cream', Icon: IceCreamBowl },
 ]
+
+const iconByName = FALLBACK_TILE_ICON_ENTRIES.reduce<Record<string, LucideIcon>>((icons, item) => {
+  icons[item.name] = item.Icon
+  return icons
+}, {})
 
 const TILE_PALETTE = [
   { color: '#b91c1c', bg: '#fff1f2', ring: 'rgba(244, 63, 94, 0.45)', glow: 'rgba(244, 63, 94, 0.22)' },
@@ -77,18 +88,99 @@ const TILE_PALETTE = [
   { color: '#92400e', bg: '#fef3c7', ring: 'rgba(217, 119, 6, 0.45)', glow: 'rgba(217, 119, 6, 0.22)' },
 ]
 
-export const TILE_SYMBOLS: TileSymbol[] = Array.from({ length: PIKACHU_IMAGE_COUNT }, (_, index) => {
+const defaultModeAssets: PikachuModeAsset[] = Array.from({ length: PIKACHU_IMAGE_COUNT }, (_, index) => {
   const pieceNumber = index + 1
   const palette = TILE_PALETTE[index % TILE_PALETTE.length]
+  const icon = FALLBACK_TILE_ICON_ENTRIES[index % FALLBACK_TILE_ICON_ENTRIES.length]
 
   return {
-    id: `piece-${pieceNumber}`,
-    label: `Piece ${pieceNumber}`,
-    Icon: FALLBACK_TILE_ICONS[index % FALLBACK_TILE_ICONS.length],
-    imageSrc: `${PIKACHU_IMAGE_PATH}/pieces${pieceNumber}.png`,
+    id: `default-icon-${pieceNumber}`,
+    symbolId: `piece-${pieceNumber}`,
+    label: `Icon ${pieceNumber}`,
+    iconName: icon.name,
+    sortOrder: pieceNumber,
     ...palette,
   }
 })
+
+const pikachuModeAssets: PikachuModeAsset[] = Array.from({ length: PIKACHU_IMAGE_COUNT }, (_, index) => {
+  const pieceNumber = index + 1
+  const palette = TILE_PALETTE[index % TILE_PALETTE.length]
+  const icon = FALLBACK_TILE_ICON_ENTRIES[index % FALLBACK_TILE_ICON_ENTRIES.length]
+
+  return {
+    id: `pikachu-piece-${pieceNumber}`,
+    symbolId: `piece-${pieceNumber}`,
+    label: `Piece ${pieceNumber}`,
+    iconName: icon.name,
+    imageSrc: `${PIKACHU_IMAGE_PATH}/pieces${pieceNumber}.png`,
+    sortOrder: pieceNumber,
+    ...palette,
+  }
+})
+
+export const DEFAULT_PIKACHU_MODES: PikachuMode[] = [
+  {
+    id: 'default-icons',
+    code: 'default-icons',
+    name: 'Default Icons',
+    description: 'Bộ icon nhẹ, dùng được ngay cả khi chưa tải ảnh.',
+    tileSource: 'icon',
+    isDefault: false,
+    isEnabled: true,
+    version: PIKACHU_BOOTSTRAP_VERSION,
+    assets: defaultModeAssets,
+  },
+  {
+    id: 'pikachu-images',
+    code: 'pikachu-images',
+    name: 'Pikachu Images',
+    description: 'Bộ ảnh Pikachu hiện có trong game.',
+    tileSource: 'image',
+    isDefault: true,
+    isEnabled: true,
+    version: PIKACHU_BOOTSTRAP_VERSION,
+    assets: pikachuModeAssets,
+  },
+]
+
+export function getModeByCode(modeCode: string, modes: PikachuMode[] = DEFAULT_PIKACHU_MODES) {
+  return modes.find((mode) => mode.code === modeCode && mode.isEnabled) || modes.find((mode) => mode.isDefault) || modes[0]
+}
+
+export function modeAssetsToTileSymbols(mode: PikachuMode): TileSymbol[] {
+  return [...mode.assets]
+    .sort((first, second) => first.sortOrder - second.sortOrder)
+    .map((asset, index) => {
+      const palette = TILE_PALETTE[index % TILE_PALETTE.length]
+      const iconEntry = FALLBACK_TILE_ICON_ENTRIES[index % FALLBACK_TILE_ICON_ENTRIES.length]
+      const Icon = (asset.iconName && iconByName[asset.iconName]) || iconEntry.Icon
+
+      return {
+        id: asset.symbolId,
+        label: asset.label,
+        Icon,
+        imageSrc: mode.tileSource === 'image' ? asset.imageSrc : undefined,
+        color: asset.color || palette.color,
+        bg: asset.bg || palette.bg,
+        ring: asset.ring || palette.ring,
+        glow: asset.glow || palette.glow,
+      }
+    })
+}
+
+export function getModeSymbols(modeCode: string, modes: PikachuMode[] = DEFAULT_PIKACHU_MODES) {
+  return modeAssetsToTileSymbols(getModeByCode(modeCode, modes))
+}
+
+export function symbolsById(symbols: TileSymbol[]) {
+  return symbols.reduce<Record<string, TileSymbol>>((lookup, symbol) => {
+    lookup[symbol.id] = symbol
+    return lookup
+  }, {})
+}
+
+export const TILE_SYMBOLS: TileSymbol[] = getModeSymbols(DEFAULT_MODE_CODE)
 
 export const DIFFICULTIES: DifficultyConfig[] = [
   {
@@ -135,17 +227,14 @@ export const LEVELS: LevelConfig[] = [
   { level: 9, title: 'Don ra hai ben ngang', shortTitle: 'Ra bien ngang', arrangement: 'edges-horizontal' },
 ]
 
-export const symbolById = TILE_SYMBOLS.reduce<Record<string, TileSymbol>>((symbols, symbol) => {
-  symbols[symbol.id] = symbol
-  return symbols
-}, {})
+export const symbolById = symbolsById(TILE_SYMBOLS)
 
-export function getDifficulty(id: DifficultyId) {
-  return DIFFICULTIES.find((difficulty) => difficulty.id === id) || DIFFICULTIES[1]
+export function getDifficulty(id: DifficultyId, difficulties: DifficultyConfig[] = DIFFICULTIES) {
+  return difficulties.find((difficulty) => difficulty.id === id) || difficulties[1] || DIFFICULTIES[1]
 }
 
-export function getLevelConfig(level: number) {
-  return LEVELS.find((config) => config.level === level) || LEVELS[0]
+export function getLevelConfig(level: number, levels: LevelConfig[] = LEVELS) {
+  return levels.find((config) => config.level === level) || levels[0] || LEVELS[0]
 }
 
 export function isDifficultyId(value: unknown): value is DifficultyId {
